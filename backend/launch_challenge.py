@@ -1,20 +1,32 @@
-import random
 import subprocess
 import threading
-
-from subnet_calculations import nth_network_subnet
-from DatabaseClasses import *
-from proxmox_api_calls import *
+import fcntl
 import os
 import shlex
-from stop_challenge import stop_challenge
-from warmup_challenge import warmup_challenge
 import time
+from typing import List, Dict
+import psycopg2
 from dotenv import load_dotenv, find_dotenv
 import hashlib
 import hmac
-from launch_timing_logger import launch_timing_logger
-from get_db_connection import db_connection_context
+
+from .DatabaseClasses import (
+    ChallengeTemplate,
+    MachineTemplate,
+    NetworkTemplate,
+    Challenge,
+    Machine,
+    Network,
+    Connection,
+    Flag, MachineFlagEntry
+)
+from .proxmox_api_calls import (
+    clone_vm_api_call
+)
+from .stop_challenge import stop_challenge
+from .warmup_challenge import warmup_challenge
+from .launch_timing_logger import launch_timing_logger
+from .get_db_connection import db_connection_context
 
 load_dotenv(find_dotenv())
 
@@ -31,12 +43,10 @@ os.makedirs(DNSMASQ_INSTANCES_DIR, exist_ok=True)
 challenge_launch_lock_dir = "/var/lock/challenge_launch_locks/"
 os.makedirs(challenge_launch_lock_dir, exist_ok=True)
 
-def launch_challenge(challenge_template_id, user_id, vpn_monitoring_device, dmz_monitoring_device):
+def launch_challenge(challenge_template_id: int, user_id: int, vpn_monitoring_device: str, dmz_monitoring_device: str) -> list[str]:
     """
     Launch a challenge by creating a user and network device.
     """
-
-
 
     with db_connection_context() as db_conn:
         launch_lock = None
@@ -191,7 +201,7 @@ def acquire_exclusive_launch_lock(user_id):
     lock_file = open(lock_file_path, 'w')
 
     try:
-        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB) # type: ignore [attr-defined]
     except Exception as e:
         lock_file.close()
         raise RuntimeError(f"Failed to acquire launch lock for user {user_id}: {e}")
@@ -205,7 +215,7 @@ def release_exclusive_launch_lock(user_id, launch_lock):
     """
 
     try:
-        fcntl.flock(launch_lock, fcntl.LOCK_UN)
+        fcntl.flock(launch_lock, fcntl.LOCK_UN) # type: ignore [attr-defined]
     finally:
         launch_lock.close()
 
@@ -403,7 +413,7 @@ def wait_for_qemu_guest_agent(machine, timeout=120):
     raise TimeoutError(f"QEMU Guest Agent timeout for VM {machine.id}")
 
 
-def generate_user_specific_flag(flag_secret, user_email):
+def generate_user_specific_flag(flag_secret: str, user_email: str):
     """
     Generate a user-specific flag using the secret and user email.
     Format: ITSEC{sha1.hmac_hash(key=secret,message=email)}
@@ -416,7 +426,7 @@ def generate_user_specific_flag(flag_secret, user_email):
     return f"ITSEC{{{hash_value}}}"
 
 
-def process_all_user_specific_flags(challenge, user_email):
+def process_all_user_specific_flags(challenge: Challenge, user_email: str) -> None:
     """
     Process all user-specific flags for the challenge.
     Generates personalized flags and writes them to the appropriate VMs.
@@ -426,35 +436,34 @@ def process_all_user_specific_flags(challenge, user_email):
             print(f"[Info] No flags defined for challenge template {challenge.template.id}", flush=True)
             return
 
-        flags_by_machine = {}
+        flags_by_machine: dict[int, list[MachineFlagEntry]] = {}
         for flag in challenge.template.flags:
-            if flag['user_specific'] and flag['machine_template_id']:
-                machine_template_id = flag['machine_template_id']
+            if flag.user_specific and flag.machine_template:
 
-                print(f"[Info] Processing flag {flag} for machine template {machine_template_id}", flush=True)
+                print(f"[Info] Processing flag {flag} for machine template {flag.machine_template.id}", flush=True)
 
                 machine = None
                 for m in challenge.machines.values():
-                    if m.template.id == machine_template_id:
+                    if m.template.id == flag.machine_template.id:
                         machine = m
                         break
 
                     if machine is None:
-                        print(f"[Warning] Machine template {machine_template_id} not found in challenge", flush=True)
+                        print(f"[Warning] Machine template {flag.machine_template.id} not found in challenge", flush=True)
                         continue
+
+                if machine is None:
+                    raise ValueError(f"Machine template {flag.machine_template.id} not found in challenge")
 
                 if machine.id not in flags_by_machine:
                     flags_by_machine[machine.id] = []
 
                 print(f"[Info] Processing flag {flag} for machine {machine.id}", flush=True)
 
-                user_flag = generate_user_specific_flag(flag['flag'], user_email)
+                user_flag = generate_user_specific_flag(flag.secret, user_email)
                 print(f"[Info] Generated user-specific flag for {user_email}: {user_flag}", flush=True)
-                flag_path = f"/root/flag_{flag['order_index']}.txt"
-                flags_by_machine[machine.id].append({
-                    'flag': user_flag,
-                    'path': flag_path,
-                })
+                flag_path = f"/root/flag_{flag.order_index}.txt"
+                flags_by_machine[machine.id].append(MachineFlagEntry(path=flag_path, flag=user_flag))
 
 
     except Exception as e:
@@ -481,7 +490,7 @@ def process_all_user_specific_flags(challenge, user_email):
         raise e
 
 
-def write_user_specific_flags_to_vm(machine_id, flags):
+def write_user_specific_flags_to_vm(machine_id: int, flags: List[Dict[str, str]]) -> None:
     """
     Write user-specific flags to a VM via QEMU Guest Agent.
     """
@@ -509,12 +518,13 @@ def write_user_specific_flags_to_vm(machine_id, flags):
     print(f"[Info] Successfully wrote flags to VM {machine_id}", flush=True)
 
 
-def generate_mac_address(machine_id, local_network_id, local_connection_id):
+def generate_mac_address(machine_id: int, local_network_id: int, local_connection_id: int) -> str:
     """
     Generate a MAC address based on the machine ID, network ID, and connection ID.
     local_network_id, local_connection_id : 1-15 -> 2 nibbles combined
     machine_id : 100000000 -> 899999999 -> 8 nibbles -> hash to
     """
+
     machine_hex = hex(machine_id)[2:].zfill(8)[-8:]
     machine_bytes = [machine_hex[i:i + 2] for i in range(0, len(machine_hex), 2)]
     network_hex = hex(local_network_id)[2:]
@@ -527,18 +537,23 @@ def generate_mac_address(machine_id, local_network_id, local_connection_id):
         raise ValueError(f"Network ID and Connection ID must be 1 hex digit, got {len(network_hex)} and "
                          f"{len(connection_hex)} hex digits")
 
-    mac = (f"02:{machine_bytes[0]}:{machine_bytes[1]}:{machine_bytes[2]}:{machine_bytes[3]}"
-           f":{network_hex}{connection_hex}")
+    mac = (
+        f"02:{machine_bytes[0]}"
+        f":{machine_bytes[1]}"
+        f":{machine_bytes[2]}"
+        f":{machine_bytes[3]}"
+        f":{network_hex}{connection_hex}"
+    )
     return mac
 
 
-def fetch_user_vpn_ip(user_id, db_conn):
+def fetch_user_vpn_ip(user_id: int, db_conn: psycopg2.extensions.connection) -> str:
     """
     Fetch the VPN IP address for the given user ID.
     """
     with db_conn.cursor() as cursor:
         cursor.execute("SELECT vpn_static_ip FROM users WHERE id = %s", (user_id,))
-        user_vpn_ip = cursor.fetchone()[0]
+        user_vpn_ip = str(cursor.fetchone()[0])
 
     if user_vpn_ip is None:
         raise ValueError("User VPN IP not found")
@@ -546,13 +561,13 @@ def fetch_user_vpn_ip(user_id, db_conn):
     return user_vpn_ip
 
 
-def fetch_user_email(user_id, db_conn):
+def fetch_user_email(user_id: int, db_conn: psycopg2.extensions.connection) -> str:
     """
     Fetch the email address for the given user ID.
     """
     with db_conn.cursor() as cursor:
         cursor.execute("SELECT email FROM users WHERE id = %s", (user_id,))
-        user_email = cursor.fetchone()[0]
+        user_email = str(cursor.fetchone()[0])
 
     if user_email is None:
         raise ValueError("User email not found")
@@ -560,7 +575,7 @@ def fetch_user_email(user_id, db_conn):
     return user_email
 
 
-def fetch_challenge_flags(challenge_template, db_conn):
+def fetch_challenge_flags(challenge_template: ChallengeTemplate, db_conn: psycopg2.extensions.connection) -> None:
     """
     Fetch challenge flags for the given challenge template.
     """
@@ -574,19 +589,19 @@ def fetch_challenge_flags(challenge_template, db_conn):
 
         challenge_template.flags = []
         for row in cursor.fetchall():
-            flag_data = {
-                'id': row[0],
-                'flag': row[1],
-                'description': row[2],
-                'points': row[3],
-                'order_index': row[4],
-                'user_specific': row[5],
-                'machine_template_id': row[6]
-            }
-            challenge_template.flags.append(flag_data)
+            flag: Flag = Flag(
+                id=row[0],
+                secret=row[1],
+                description=row[2],
+                points=row[3],
+                order_index=row[4],
+                user_specific=row[5],
+                machine_template=challenge_template.machine_templates[row[6]]
+            )
+            challenge_template.flags.append(flag)
 
 
-def add_iptables_rules(challenge, user_vpn_ip, vpn_monitoring_device, dmz_monitoring_device):
+def add_iptables_rules(challenge: Challenge, user_vpn_ip: str, vpn_monitoring_device: str, dmz_monitoring_device: str) -> None:
     """
     Update iptables rules for the given user VPN IP.
     """
@@ -674,7 +689,7 @@ def add_iptables_rules(challenge, user_vpn_ip, vpn_monitoring_device, dmz_monito
             ], check=True)
 
 
-def start_dnsmasq_instances(challenge, user_vpn_ip):
+def start_dnsmasq_instances(challenge: Challenge, user_vpn_ip: str) -> None:
     """
     Start a dnsmasq process per network that needs DNS/DHCP, isolated by interface.
     Each instance will only answer for its configured domains and will ignore unknown zones,
@@ -714,7 +729,7 @@ def start_dnsmasq_instances(challenge, user_vpn_ip):
         print(f"[Info] Started dnsmasq for network {network.id} on device {network.host_device}", flush=True)
 
 
-def add_running_challenge_to_user(challenge, user_id, db_conn):
+def add_running_challenge_to_user(challenge: Challenge, user_id: int, db_conn: psycopg2.extensions.connection) -> None:
     """
     Add the running challenge to the user.
     """
@@ -723,7 +738,7 @@ def add_running_challenge_to_user(challenge, user_id, db_conn):
         cursor.execute("UPDATE users SET running_challenge = %s WHERE id = %s", (challenge.id, user_id))
 
 
-def reset_expiration_timer(challenge_id, db_conn, expiration_duration_minutes=60):
+def reset_expiration_timer(challenge_id: int, db_conn: psycopg2.extensions.connection, expiration_duration_minutes: int = 60) -> None:
     """
     Reset the expiration timer for the challenge.
     """

@@ -1,4 +1,4 @@
-def nth_subnet(subnet: str, n: int, start_subnet_mask, end_subnet_mask) -> str:
+def nth_subnet(subnet: str, n: int, start_subnet_mask: int, end_subnet_mask: int) -> str:
     """
     Calculate the nth subnet of a given subnet.
     """
@@ -17,10 +17,10 @@ def nth_subnet(subnet: str, n: int, start_subnet_mask, end_subnet_mask) -> str:
         """Convert binary to IP address."""
         return '.'.join(str(int(binary[i:i + 8], 2)) for i in range(0, 32, 8))
 
-    ip_bin = ip_to_binary(subnet)
-    n_bin = bin(n)[2:].zfill(end_subnet_mask - start_subnet_mask)
+    ip_bin: str = ip_to_binary(subnet)
+    n_bin: str = bin(n)[2:].zfill(end_subnet_mask - start_subnet_mask)
 
-    network_bin = ip_bin[:start_subnet_mask] + n_bin + '0' * (32 - end_subnet_mask)
+    network_bin: str = ip_bin[:start_subnet_mask] + n_bin + '0' * (32 - end_subnet_mask)
 
     return binary_to_ip(network_bin) + "/" + str(end_subnet_mask)
 

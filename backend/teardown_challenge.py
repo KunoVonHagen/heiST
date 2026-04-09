@@ -1,5 +1,19 @@
-from DatabaseClasses import *
-from proxmox_api_calls import *
+from .DatabaseClasses import (
+    Challenge,
+    ChallengeTemplate,
+    ChallengeSubnet,
+    Machine,
+    MachineTemplate,
+    Network,
+    NetworkTemplate,
+    Connection
+)
+from .proxmox_api_calls import (
+    vm_exists_api_call,
+    delete_network_api_call,
+    reload_network_api_call,
+    network_device_exists_api_call
+)
 import subprocess
 import os
 import time
@@ -7,7 +21,7 @@ import requests
 import urllib3
 from tenacity import retry, stop_after_attempt, wait_fixed
 from dotenv import load_dotenv, find_dotenv
-from get_db_connection import db_connection_context
+from .get_db_connection import db_connection_context
 import random
 
 load_dotenv(find_dotenv())
@@ -17,14 +31,14 @@ CHALLENGES_ROOT_SUBNET_MASK = os.getenv("CHALLENGES_ROOT_SUBNET_MASK", "255.128.
 CHALLENGES_ROOT_SUBNET_MASK_INT = sum(bin(int(x)).count('1') for x in CHALLENGES_ROOT_SUBNET_MASK.split('.'))
 CHALLENGES_ROOT_SUBNET_CIDR = f"{CHALLENGES_ROOT_SUBNET}/{CHALLENGES_ROOT_SUBNET_MASK_INT}"
 
-MONITORING_HOST = os.getenv("MONITORING_HOST", "10.0.0.103")
-WAZUH_PORT = os.getenv("WAZUH_API_PORT", "55000")
-WAZUH_USER = os.getenv("WAZUH_API_USER", "wazuh-wui")
-WAZUH_PASSWORD = os.getenv("WAZUH_API_PASSWORD", "MyS3cr37P450r.*-")
+MONITORING_HOST: str = os.getenv("MONITORING_HOST", "10.0.0.103")
+WAZUH_PORT: str = os.getenv("WAZUH_API_PORT", "55000")
+WAZUH_USER: str = os.getenv("WAZUH_API_USER", "wazuh-wui")
+WAZUH_PASSWORD: str = os.getenv("WAZUH_API_PASSWORD", "MyS3cr37P450r.*-")
 
-DNSMASQ_INSTANCES_DIR = "/etc/dnsmasq-instances"
+DNSMASQ_INSTANCES_DIR: str = "/etc/dnsmasq-instances"
 
-def teardown_challenge(challenge_id):
+def teardown_challenge(challenge_id: int) -> None:
     """
     Stop a challenge for a user.
     """

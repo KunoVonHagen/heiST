@@ -1,12 +1,14 @@
-def launch_timing_logger(start_time, tag, challenge_template_id=None, user_id=None, logfile_path="/var/log/ctf-challenger-launch_timing.log", **kwargs):
+from typing import Any
+
+def launch_timing_logger(start_time: float, tag: str, challenge_template_id: int | None = None, user_id: int | None = None, logfile_path: str = "/var/log/ctf-challenger-launch_timing.log", **kwargs: Any) -> None:
     """Log the timing of a challenge launch to a log file."""
 
     import time
     import datetime
 
-    end_time = time.time()
+    end_time: float = time.time()
 
-    log_message = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    log_message: str = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     log_message += f" | {tag}"
 
     if user_id is not None:
@@ -24,5 +26,3 @@ def launch_timing_logger(start_time, tag, challenge_template_id=None, user_id=No
 
     with open(logfile_path, "a") as logfile:
         logfile.write(log_message + "\n")
-
-

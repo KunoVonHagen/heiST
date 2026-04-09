@@ -1,29 +1,34 @@
-from cleanup import teardown_remaining_challenges
-from proxmox_api_calls import delete_vm_api_call
-from DatabaseClasses import ChallengeTemplate, MachineTemplate, Challenge
 import subprocess
+from typing import List
+import psycopg2
+
+from .cleanup import teardown_remaining_challenges
+from .proxmox_api_calls import delete_vm_api_call
+from .DatabaseClasses import ChallengeTemplate, MachineTemplate, Challenge
+from .get_db_connection import db_connection_context
 
 
-def delete_machine_templates(challenge_template_id, db_conn):
+def delete_machine_templates(challenge_template_id: int) -> None:
     """
     Delete the machine template VMs for a challenge.
     """
 
-    try:
-        disable_pooling_for_challenge_template(challenge_template_id, db_conn)
+    with db_connection_context() as db_conn:
+        try:
+            disable_pooling_for_challenge_template(challenge_template_id, db_conn)
 
-        challenge_template = fetch_challenge_and_machine_templates(challenge_template_id, db_conn)
+            challenge_template: ChallengeTemplate = fetch_challenge_and_machine_templates(challenge_template_id, db_conn)
 
-        challenges = fetch_running_challenges(challenge_template, db_conn)
-    except Exception as e:
-        raise ValueError(f"Error fetching challenge and machine templates: {str(e)}")
+            challenges: List[Challenge] = fetch_running_challenges(challenge_template, db_conn)
+        except Exception as e:
+            raise ValueError(f"Error fetching challenge and machine templates: {str(e)}")
 
-    teardown_remaining_challenges([challenge.id for challenge in challenges])
+        teardown_remaining_challenges([challenge.id for challenge in challenges])
 
-    delete_machine_template_vms(challenge_template)
+        delete_machine_template_vms(challenge_template)
 
 
-def disable_pooling_for_challenge_template(challenge_template_id, db_conn):
+def disable_pooling_for_challenge_template(challenge_template_id: int, db_conn: psycopg2.extensions.connection) -> None:
     """
     Disable pooling for a challenge template.
     """
@@ -33,7 +38,7 @@ def disable_pooling_for_challenge_template(challenge_template_id, db_conn):
         db_conn.commit()
 
 
-def fetch_challenge_and_machine_templates(challenge_template_id, db_conn):
+def fetch_challenge_and_machine_templates(challenge_template_id: int, db_conn: psycopg2.extensions.connection) -> ChallengeTemplate:
     """
     Fetch the machine template IDs for a challenge.
     """
@@ -41,18 +46,18 @@ def fetch_challenge_and_machine_templates(challenge_template_id, db_conn):
     with db_conn.cursor() as cursor:
         cursor.execute("SELECT id FROM challenge_templates WHERE id = %s", (challenge_template_id,))
 
-        result = cursor.fetchone()
+        result: tuple[int] | None = cursor.fetchone()
         if result is None:
             raise ValueError(f"Challenge template with ID {challenge_template_id} not found.")
 
-        challenge_template = ChallengeTemplate(challenge_template_id=challenge_template_id)
+        challenge_template: ChallengeTemplate = ChallengeTemplate(challenge_template_id=challenge_template_id)
 
     with db_conn.cursor() as cursor:
         cursor.execute("SELECT id FROM machine_templates WHERE challenge_template_id = %s", (challenge_template.id,))
 
-        for machine_template_id in cursor.fetchall():
-            machine_template = MachineTemplate(
-                machine_template_id=machine_template_id[0],
+        for machine_template_id_row in cursor.fetchall():
+            machine_template: MachineTemplate = MachineTemplate(
+                machine_template_id=machine_template_id_row[0],
                 challenge_template=challenge_template
             )
             challenge_template.add_machine_template(machine_template)
@@ -60,24 +65,24 @@ def fetch_challenge_and_machine_templates(challenge_template_id, db_conn):
     return challenge_template
 
 
-def fetch_running_challenges(challenge_template, db_conn):
+def fetch_running_challenges(challenge_template: ChallengeTemplate, db_conn: psycopg2.extensions.connection) -> List[Challenge]:
     """
     Fetch the running machine template instances for a challenge.
     """
 
-    challenges = []
+    challenges: List[Challenge] = []
 
     with db_conn.cursor() as cursor:
         cursor.execute("SELECT id, subnet FROM challenges WHERE challenge_template_id = %s", (challenge_template.id,))
 
         for challenge_id, subnet in cursor.fetchall():
-            challenge = Challenge(challenge_id=challenge_id, template=challenge_template, subnet=subnet)
+            challenge: Challenge = Challenge(challenge_id=challenge_id, template=challenge_template, subnet=subnet)
             challenges.append(challenge)
 
     return challenges
 
 
-def delete_machine_template_vms(challenge_template):
+def delete_machine_template_vms(challenge_template: ChallengeTemplate) -> None:
     """
     Delete the machine template VMs for a challenge.
     """

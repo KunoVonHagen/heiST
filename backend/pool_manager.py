@@ -6,11 +6,11 @@ import math
 import subprocess
 import time
 import traceback
-from get_db_connection import get_db_connection
 import fcntl
 
-from warmup_challenge import warmup_challenge as warmup_challenge_backend
-from teardown_challenge import teardown_challenge as teardown_challenge_backend
+from .get_db_connection import get_db_connection
+from .warmup_challenge import warmup_challenge as warmup_challenge_backend
+from .teardown_challenge import teardown_challenge as teardown_challenge_backend
 
 load_dotenv()
 
@@ -71,12 +71,12 @@ def system_is_ready_for_warmup():
 
     with open(CLEANUP_COMPLETE_FILE_PATH, "w") as f:
         try:
-            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB) # type: ignore [attr-defined]
         except IOError:
             print("[CHECK][WAIT] Cleanup process not complete yet")
             return False
 
-        fcntl.flock(f, fcntl.LOCK_UN)
+        fcntl.flock(f, fcntl.LOCK_UN) # type: ignore [attr-defined]
 
     return True
 
@@ -100,7 +100,7 @@ class PoolManager:
 
         print(f"[POOL] min={minimal_pool_size} max={maximal_pool_size} interval={check_interval_seconds}s")
 
-    def start(self):
+    def start(self) -> None:
         """
         Start the pool manager loop in a separate thread.
         """
@@ -114,7 +114,7 @@ class PoolManager:
             name="pool-manager-loop"
         ).start()
 
-    def pool_manager_loop(self):
+    def pool_manager_loop(self) -> None:
         """
         Main loop of the pool manager
         """
@@ -152,7 +152,7 @@ class PoolManager:
                 print(f"[LOOP] Sleeping {self.check_interval_seconds}s")
                 time.sleep(self.check_interval_seconds)
 
-    def check_and_maintain_pool(self):
+    def check_and_maintain_pool(self) -> None:
         """
         Check the current pool sizes and maintain the hot pool.
         """
@@ -342,7 +342,7 @@ class PoolManager:
         print(f"[POOL] Interpolated target size={result}")
         return result
 
-    def cleanup_leftover_from_crashed_processes(self):
+    def cleanup_leftover_from_crashed_processes(self) -> None:
         print("[CLEANUP] Checking for orphaned challenges")
 
         cleanup_db_conn = get_db_connection()
@@ -366,7 +366,7 @@ class PoolManager:
                 daemon=True
             ).start()
 
-    def teardown_expired_challenges(self):
+    def teardown_expired_challenges(self) -> None:
         print("[EXPIRED] Checking for expired challenges")
 
         with self.expired_challenge_teardown_db_conn.cursor() as cursor:

@@ -1,20 +1,37 @@
-import random
-import subprocess
-import threading
+from .subnet_calculations import nth_network_subnet, nth_machine_ip
+from .DatabaseClasses import (
+    ChallengeTemplate,
+    MachineTemplate,
+    NetworkTemplate,
+    ConnectionTemplate,
+    DomainTemplate,
+    ChallengeSubnet,
+    Challenge,
+    Machine,
+    Network,
+    Connection,
+    Domain
+)
+from .proxmox_api_calls import (
+    clone_vm_api_call,
+    add_network_device_api_call,
+    create_network_api_call,
+    reload_network_api_call,
+    attach_networks_to_vm_api_call,
+    launch_vm_api_call,
+    delete_network_api_call
+)
+from .teardown_challenge import remove_database_entries, stop_dnsmasq_instances,remove_challenge_from_wazuh
+from .launch_timing_logger import launch_timing_logger
+from .get_db_connection import db_connection_context
 
-from subnet_calculations import nth_network_subnet
-from DatabaseClasses import *
-from proxmox_api_calls import *
+import random
+import threading
 import os
-import shlex
-from teardown_challenge import remove_database_entries, stop_dnsmasq_instances,remove_challenge_from_wazuh
+import subprocess
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 import time
 from dotenv import load_dotenv, find_dotenv
-import hashlib
-import hmac
-from launch_timing_logger import launch_timing_logger
-from get_db_connection import db_connection_context
 
 load_dotenv(find_dotenv())
 
@@ -284,14 +301,14 @@ def wait_for_qemu_guest_agent(machine, timeout=120):
     raise TimeoutError(f"QEMU Guest Agent timeout for VM {machine.id}")
 
 
-def configure_ipv6_and_wazuh_via_guest_agent(machine, manager_ip="fd12:3456:789a:1::101"):
+def configure_ipv6_and_wazuh_via_guest_agent(machine: Machine, manager_ip: str = "fd12:3456:789a:1::101") -> None:
     """
     Configure IPv6 and Wazuh agent via QEMU Guest Agent
     All Wazuh-related commands are batched into a single execution.
     """
-    ipv6 = vmid_to_ipv6(machine.id)
-    vrtmon_gw = "fd12:3456:789a:1::1"
-    agent_name = f"Agent_{machine.id}"
+    ipv6: str = vmid_to_ipv6(machine.id)
+    vrtmon_gw: str = "fd12:3456:789a:1::1"
+    agent_name: str = f"Agent_{machine.id}"
 
     full_start_time = time.time()
 
@@ -492,7 +509,7 @@ def configure_dnsmasq_instances(challenge):
     machines_with_internet_access = {}
 
     # Collect upstream DNS servers per machine
-    dns_servers_by_machine = {machine_id: [] for machine_id in challenge.machines.keys()}
+    dns_servers_by_machine: dict[int, list[str]] = {machine_id: [] for machine_id in challenge.machines.keys()}
     for machine in challenge.machines.values():
         for connection in machine.connections.values():
             dns_servers_by_machine[machine.id].append(connection.network.router_ip)

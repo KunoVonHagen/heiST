@@ -1,17 +1,35 @@
+from .proxmox_api_calls import (
+    add_network_device_api_call,
+    attach_cloud_init_drive,
+    convert_vm_to_template_api_call,
+    delete_vm_api_call,
+    detach_cloud_init_drive,
+    detach_network_device_api_call,
+    initial_configuration_api_call,
+    launch_vm_api_call,
+    shutdown_vm_api_call,
+    vm_is_stopped_api_call
+)
+from .DatabaseClasses import MachineTemplate, ChallengeTemplate
+from pool_manager import PoolManager
+
 import subprocess
-from proxmox_api_calls import *
-from DatabaseClasses import MachineTemplate, ChallengeTemplate
 from hashlib import sha256
 import json
 import time
 import random
+import os
+import re
+import psycopg2
+import base64
 
-def import_machine_templates(challenge_template_id, db_conn, ip_pool):
+
+def import_machine_templates(challenge_template_id: int, db_conn: psycopg2.extensions.connection, ip_pool: PoolManager) -> None:
     """
     Import a machine template from a disk image file and associate it with a challenge.
     """
     try:
-        challenge_template = fetch_challenge_template(challenge_template_id, db_conn)
+        challenge_template: ChallengeTemplate = fetch_challenge_template(challenge_template_id, db_conn)
 
         fetch_machine_templates(challenge_template, db_conn)
     except Exception as e:
@@ -30,23 +48,23 @@ def import_machine_templates(challenge_template_id, db_conn, ip_pool):
         raise RuntimeError(f"Failed to import disk images: {e}")
 
 
-def fetch_challenge_template(challenge_id, db_conn):
+def fetch_challenge_template(challenge_id: int, db_conn: psycopg2.extensions.connection) -> ChallengeTemplate:
     """
     Fetch the challenge details from the database.
     """
     with db_conn.cursor() as cursor:
         cursor.execute("SELECT id FROM challenge_templates WHERE id = %s", (challenge_id,))
-        result = cursor.fetchone()
+        result: tuple[int] | None = cursor.fetchone()
 
     if result is None:
         raise ValueError(f"Challenge with ID {challenge_id} not found.")
 
-    challenge_template = ChallengeTemplate(challenge_template_id=result[0])
+    challenge_template: ChallengeTemplate = ChallengeTemplate(challenge_template_id=result[0])
 
     return challenge_template
 
 
-def fetch_machine_templates(challenge_template, db_conn):
+def fetch_machine_templates(challenge_template: ChallengeTemplate, db_conn: psycopg2.extensions.connection) -> None:
     """
     Fetch the machine templates associated with the challenge from the database.
     """
@@ -64,7 +82,7 @@ def fetch_machine_templates(challenge_template, db_conn):
             if not disk_file_path.endswith(('.ova', '.iso')):
                 raise ValueError(f"Disk file path {disk_file_path} is not a valid OVA or ISO file.")
 
-            machine_template = MachineTemplate(
+            machine_template: MachineTemplate = MachineTemplate(
                 machine_template_id=machine_template_id,
                 challenge_template=challenge_template
             )
@@ -74,26 +92,24 @@ def fetch_machine_templates(challenge_template, db_conn):
             challenge_template.add_machine_template(machine_template)
 
 
-def check_user_input(user_input):
+def check_user_input(user_input: str) -> None:
     """
     Sanitize user input to prevent command injection attacks.
     """
-    import re
-
-    blacklist_pattern = r"""[;&|><`$\\'"*?{}\[\]~!#()=]+"""
+    blacklist_pattern: str = r"""[;&|><`$\\'"*?{}\[\]~!#()=]+"""
     if re.search(blacklist_pattern, user_input):
         raise ValueError("Input contains potentially dangerous characters.")
 
 
-def import_disk_images_to_vm_templates(challenge_template):
+def import_disk_images_to_vm_templates(challenge_template: ChallengeTemplate) -> None:
     """
     Import the disk images to VM templates.
     """
     for machine_template in challenge_template.machine_templates.values():
-        disk_file_path = machine_template.disk_file_path
+        disk_file_path: str = machine_template.disk_file_path
         check_user_input(disk_file_path)
 
-        disk_file_extension = os.path.splitext(disk_file_path)[1].lower()
+        disk_file_extension: str = os.path.splitext(disk_file_path)[1].lower()
 
         if disk_file_extension == ".ova":
             convert_ova_to_machine_template(disk_file_path, machine_template.id)
@@ -392,3 +408,4 @@ def undo_import_machine_templates(challenge_template):
                 subprocess.run(["qm", "destroy", str(machine_template.id)], check=True, capture_output=True)
             except Exception:
                 pass
+

@@ -2,19 +2,19 @@ import os
 import subprocess
 import fcntl
 
-LOCK_FILE = "/var/lock/easy_rsa.lock"
+LOCK_FILE: str = "/var/lock/easy_rsa.lock"
 
 
-def delete_user_config(user_id):
+def delete_user_config(user_id: int) -> None:
     """
     Removes an OpenVPN client configuration, keys, and related files.
     """
 
-    easy_rsa_dir = "/etc/openvpn/easy-rsa"
-    ccd_dir = "/etc/openvpn/ccd"
-    client_config_dir = "/etc/openvpn/client-configs"
+    easy_rsa_dir: str = "/etc/openvpn/easy-rsa"
+    ccd_dir: str = "/etc/openvpn/ccd"
+    client_config_dir: str = "/etc/openvpn/client-configs"
 
-    files_to_remove = [
+    files_to_remove: list[str] = [
         (os.path.join(client_config_dir, f"{user_id}.ovpn")),
         (os.path.join(easy_rsa_dir, "pki", "issued", f"{user_id}.crt")),
         (os.path.join(easy_rsa_dir, "pki", "private", f"{user_id}.key")),
@@ -27,13 +27,13 @@ def delete_user_config(user_id):
             os.remove(path)
 
     # Generate client certificate and key
-    env = os.environ.copy()
+    env: dict[str, str] = os.environ.copy()
     env["EASYRSA"] = "/etc/openvpn/easy-rsa"
     env["EASYRSA_PKI"] = "/etc/openvpn/easy-rsa/pki"
     env['EASYRSA_BATCH'] = '1'
 
     with open(LOCK_FILE, 'w') as lock_file:
-        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        fcntl.flock(lock_file, fcntl.LOCK_EX) # type: ignore [attr-defined]
         try:
             subprocess.run(["./easyrsa", "--batch", "revoke", str(user_id)],
                            cwd=easy_rsa_dir, check=True, capture_output=True, env=env)
@@ -50,4 +50,5 @@ def delete_user_config(user_id):
                            check=True, capture_output=True)
         except Exception:
             pass
-        fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+        fcntl.flock(lock_file, fcntl.LOCK_UN) # type: ignore [attr-defined]
