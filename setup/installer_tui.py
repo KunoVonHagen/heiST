@@ -368,7 +368,7 @@ DEFAULTS = {
     "LECTURE_SIGNUP_TOKEN": "dummy-token",
 
     # Networking / VPN / VM import
-    "OPENVPN_SUBNET": "10.64.0.0/10",
+    "OPENVPN_SUBNET": "10.64.0.0/16",
     "OPENVPN_SERVER_IP": "10.64.0.1",
     "BACKEND_NETWORK_SUBNET": "10.0.0.1/24",
     "BACKEND_NETWORK_ROUTER": "10.0.0.1",
@@ -476,7 +476,7 @@ def field(name: str, label: str, kind: str = "text", *, description: str = "", s
 
 SIMPLE_SECTION = SectionSpec(
     title="Simple setup",
-    subtitle="Only the four values most users need to change.",
+    subtitle="Only the five values most users need to change.",
     fields=[
         field(
             "PROXMOX_HOSTNAME",
@@ -506,6 +506,13 @@ SIMPLE_SECTION = SectionSpec(
             description="The IP address that users or VPN clients should reach from the outside. This is the IP address that will be embedded in generated OpenVPN configs.",
             example="10.0.3.4",
         ),
+        field(
+            "WEBSITE_ADMIN_PASSWORD",
+            "Website admin password",
+            "secret",
+            secret=True,
+            description="Password for the admin account of the web application. This is used to log in to the challenge website and should be something secure."
+        ),
     ],
 )
 
@@ -518,7 +525,7 @@ ADVANCED_SECTIONS = [
             field("PROXMOX_USER", "Proxmox user", description="The account used for API calls. The default is usually `root@pam`.", example="root@pam"),
             field("PROXMOX_PASSWORD", "Proxmox password", "secret", secret=True, description="Password for the Proxmox user above. The installer uses it to create API tokens and configure the host."),
             field("PROXMOX_PORT", "Proxmox API port", "port", description="The HTTPS API port for Proxmox. In most installations this is `8006`.", example="8006"),
-            field("PROXMOX_HOSTNAME", "Proxmox node name", "hostname", description="The node name used by the Proxmox API. This should match the name shown in the Proxmox interface.", example="pve"),
+            field("PROXMOX_HOSTNAME", "Proxmox node name", "hostname", description="The node name shown in the Proxmox UI and used by the API. Usually this is the Proxmox host's short hostname, for example `pve`.", example="pve"),
             field("UBUNTU_BASE_SERVER_URL", "Ubuntu base server URL", "path", description="URL used to download the Ubuntu cloud image/base server artifact during setup."),
         ],
     ),
@@ -707,8 +714,19 @@ ADVANCED_SECTIONS = [
 ]
 
 ALL_SECTIONS = [SIMPLE_SECTION, *ADVANCED_SECTIONS]
-ALL_FIELD_SPECS = [field_spec for section in ALL_SECTIONS for field_spec in section.fields]
-FIELD_BY_NAME = {spec.name: spec for spec in ALL_FIELD_SPECS}
+# Build an ordered, deduplicated list of field specs.
+# We prefer the first occurrence of a field name (SIMPLE_SECTION is placed first)
+# so that when a variable exists in both simple and advanced sections the
+# simple-mode FieldSpec (including its description) wins.
+_ALL_FIELD_SPECS_ORDERED: list[FieldSpec] = []
+FIELD_BY_NAME: dict[str, FieldSpec] = {}
+for section in ALL_SECTIONS:
+    for spec in section.fields:
+        if spec.name not in FIELD_BY_NAME:
+            FIELD_BY_NAME[spec.name] = spec
+            _ALL_FIELD_SPECS_ORDERED.append(spec)
+
+ALL_FIELD_SPECS = _ALL_FIELD_SPECS_ORDERED
 
 
 def format_env_value(value: str) -> str:
@@ -735,11 +753,32 @@ def generate_password_value(length: int = 24) -> str:
     return "".join(password)
 
 
+def generate_password_without_special(length: int = 24) -> str:
+    LOWERCASE = string.ascii_lowercase
+    UPPERCASE = string.ascii_uppercase
+    DIGITS = string.digits
+
+    password = []
+
+    for required in [LOWERCASE, UPPERCASE, DIGITS]:
+        password.append(secrets.choice(required))
+
+    for _ in range(length - len(password)):
+        password.append(secrets.choice(LOWERCASE + UPPERCASE + DIGITS))
+
+    secrets.SystemRandom().shuffle(password)
+
+    return "".join(password)
+
+
 def build_generated_password_defaults() -> dict[str, str]:
     generated: dict[str, str] = {}
     for key in DEFAULTS:
         if key.endswith("_PASSWORD") and key != "PROXMOX_PASSWORD":
-            generated[key] = generate_password_value()
+            if not "DATABASE_PASSWORD" in key: # Database passwords may be used in contexts where special characters cause issues
+                generated[key] = generate_password_value()
+            else:
+                generated[key] = generate_password_without_special()
     return generated
 
 
@@ -1096,6 +1135,7 @@ def build_review_table(values: dict[str, str], changed_keys: Iterable[str]) -> T
         table.add_row("(no changes)", "All values kept from the current configuration or defaults.", "saved")
         return table
 
+    # Use the deduplicated ordered list so each variable appears only once.
     ordered_specs = [spec for spec in ALL_FIELD_SPECS if spec.name in changed]
     for spec in ordered_specs:
         value = values.get(spec.name, "")
@@ -1141,9 +1181,9 @@ def prompt_save_on_interrupt(values: dict[str, str], original: dict[str, str]) -
         )
     )
 
-    if changed_count == 0:
-        console.print("[yellow]No unsaved changes to write.[/yellow]")
-        raise SystemExit(1)
+    #if changed_count == 0:
+    #    console.print("[yellow]No unsaved changes to write.[/yellow]")
+    #    raise SystemExit(1)
 
     if Confirm.ask("Save current values to `.env` before exiting?", default=True):
         write_env_file(values)
@@ -1196,22 +1236,15 @@ def run_command(command: list[str], cwd: Path) -> None:
     pretty = " ".join(shlex.quote(part) for part in command)
     console.print(Panel(pretty, title=f"Running in {cwd}", border_style="yellow"))
 
-    process = subprocess.Popen(
-        command,
-        cwd=str(cwd),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,
-    )
-
-    assert process.stdout is not None
-    for line in process.stdout:
-        console.print(line.rstrip())
-
-    return_code = process.wait()
-    if return_code != 0:
-        raise subprocess.CalledProcessError(return_code, command)
+    # Run the command inheriting the parent's stdout/stderr so the child
+    # process writes directly to the terminal. This avoids invisible/latency
+    # caused by capturing + buffering and makes the output visible in real time.
+    # Use check_call to raise on non-zero exit.
+    try:
+        subprocess.check_call(command, cwd=str(cwd))
+    except subprocess.CalledProcessError:
+        # Re-raise to allow upstream handling and consistent behavior.
+        raise
 
 
 def choose_action(mode: str) -> str:
@@ -1292,5 +1325,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
 
