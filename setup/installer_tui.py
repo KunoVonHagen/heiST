@@ -343,7 +343,7 @@ DEFAULTS = {
     "PROXMOX_INTERNAL_IP": "10.0.3.4",
     "PROXMOX_EXTERNAL_IP": "10.0.3.4",
     "PROXMOX_HOSTNAME": "pve",
-    "UBUNTU_BASE_SERVER_URL": "",
+    "UBUNTU_BASE_SERVER_URL": "https://heibox.uni-heidelberg.de/f/004597b1f84040f79dbf/?dl=1",
 
     # Paths / database / webserver
     "DATABASE_FILES_DIR": "/root/heiST/database",
@@ -372,7 +372,7 @@ DEFAULTS = {
     "OPENVPN_SERVER_IP": "10.64.0.1",
     "BACKEND_NETWORK_SUBNET": "10.0.0.1/24",
     "BACKEND_NETWORK_ROUTER": "10.0.0.1",
-    "BACKEND_NETWORK_DEVICE": "vrt-backend",
+    "BACKEND_NETWORK_DEVICE": "vrt_backend",
     "BACKEND_NETWORK_HOST_MIN": "10.0.0.2",
     "BACKEND_NETWORK_HOST_MAX": "10.0.0.254",
     "DATABASE_MAC_ADDRESS": "0E:00:00:00:00:01",
@@ -579,7 +579,7 @@ ADVANCED_SECTIONS = [
             field("OPENVPN_SERVER_IP", "OpenVPN server IP", "ip", description="Static server IP address inside the VPN subnet.", example="10.64.0.1"),
             field("BACKEND_NETWORK_SUBNET", "Backend network subnet", "interface", description="Backend bridge subnet in interface notation, for example `10.0.0.1/24`.", example="10.0.0.1/24"),
             field("BACKEND_NETWORK_ROUTER", "Backend network router", "ip", description="Default gateway used by backend VMs on the bridge.", example="10.0.0.1"),
-            field("BACKEND_NETWORK_DEVICE", "Backend bridge name", description="Linux bridge name created on the Proxmox host for backend traffic.", example="vrt-backend"),
+            field("BACKEND_NETWORK_DEVICE", "Backend bridge name", description="Linux bridge name created on the Proxmox host for backend traffic.", example="vrt_backend"),
             field("BACKEND_NETWORK_HOST_MIN", "Backend DHCP range start", "ip", description="First address handed out by dnsmasq for backend VMs.", example="10.0.0.2"),
             field("BACKEND_NETWORK_HOST_MAX", "Backend DHCP range end", "ip", description="Last address handed out by dnsmasq for backend VMs.", example="10.0.0.254"),
             field("CHALLENGES_ROOT_SUBNET", "Challenges root subnet", "ip_or_host", description="Base subnet for challenge VM networks pushed to VPN clients.", example="10.128.0.0"),
