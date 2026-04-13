@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interactive onboarding wizard for CTF-Challenger setup.
+"""Interactive onboarding wizard for heiST setup.
 
 This script guides a user through the required configuration values,
 writes a merged ``.env`` file into ``setup/``, and can optionally launch
@@ -28,10 +28,12 @@ ENV_FILE_PATH = SCRIPT_DIR / ".env"
 CREDENTIALS_MD_PATH = SCRIPT_DIR / "credentials.md"
 
 
-def _run_bootstrap_command(command: list[str]) -> None:
-    printable = " ".join(shlex.quote(part) for part in command)
-    print(f"[bootstrap] {printable}", flush=True)
-    subprocess.run(command, check=True)
+def _run_bootstrap_command(command: list[str], description) -> None:
+    print(f"[bootstrap] {description}...", flush=True)
+    out = subprocess.run(command, capture_output=True)
+
+    if not out.returncode == 0:
+        raise subprocess.CalledProcessError(out.returncode, command, output=out.stdout, stderr=out.stderr)
 
 
 def _with_optional_sudo(command: list[str]) -> list[str]:
@@ -78,11 +80,21 @@ def install_system_dependencies() -> None:
     debian_version = _parse_debian_version_full()
     ntp_package = "ntpsec-ntpdate" if debian_version and _version_ge(debian_version, "13.0") else "ntpdate"
 
-    _run_bootstrap_command(_with_optional_sudo(["apt", "update"]))
-    _run_bootstrap_command(_with_optional_sudo(["apt", "install", "-y", ntp_package]))
+    # Disable enterprise proxmox and ceph repositories to prevent apt update failures
+    for repo_file in ["/etc/apt/sources.list.d/pve-enterprise.sources", "/etc/apt/sources.list.d/ceph.sources"]:
+        # Replace Enabled: true with Enabled: false, or append Enabled: false if not present
+        cmd = (
+            f"[ -f {repo_file} ] && "
+            f"(grep -q '^Enabled:' {repo_file} && sed -i 's/^Enabled: true$/Enabled: false/' {repo_file} || "
+            f"echo 'Enabled: false' >> {repo_file}) || true"
+        )
+        _run_bootstrap_command(_with_optional_sudo(["bash", "-c", cmd]), description=f"Disabling {repo_file} if it exists")
+
+    _run_bootstrap_command(_with_optional_sudo(["apt", "update"]), description="Updating `apt` packages")
+    _run_bootstrap_command(_with_optional_sudo(["apt", "install", "-y", ntp_package]), description="Installing `ntpdate` packages")
 
     if shutil.which("ntpdate"):
-        _run_bootstrap_command(_with_optional_sudo(["ntpdate", "time.google.com"]))
+        _run_bootstrap_command(_with_optional_sudo(["ntpdate", "time.google.com"]), description="Synchronizing system time")
     else:
         print("[bootstrap] `ntpdate` command not found after package install; skipping time sync.", flush=True)
 
@@ -98,7 +110,7 @@ def install_system_dependencies() -> None:
                 "python3-dotenv",
                 "python3-tenacity",
             ]
-        )
+        ), description="Installing dependencies available on `apt`"
     )
 
 
@@ -106,12 +118,10 @@ def install_python_dependencies() -> None:
     command = [sys.executable, "-m", "pip", "install", "-r", str(REQUIREMENTS_PATH)]
     if os.name != "nt":
         command.append("--break-system-packages")
-    _run_bootstrap_command(command)
+    _run_bootstrap_command(command, description="Installing dependencies with `pip`")
 
 
 def bootstrap_requirements() -> None:
-    print("Installing installer dependencies...", flush=True)
-
     try:
         install_system_dependencies()
         install_python_dependencies()
@@ -141,6 +151,30 @@ else:
 console = Console()
 
 
+def draw_header() -> None:
+    """
+    Draws the header including logo and product name at the top
+    """
+
+    logo = r"""
+⠀⠀⠀⠀⢀⣤⡶⠶⠛⠛⠛⠛⠶⢦⣤⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⣠⡾⠋⠡⣴⠶⠟⠛⠛⠻⢶⣤⣈⠛⢶⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⣴⠏⣠⡦⠀⣠⡴⠾⠛⠛⠶⢾⣇⠙⢷⡄⠻⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⢸⡏⢰⡟⢀⡾⠋⠀[red]⣀[/red]⠀⠀⠀⠀⠙⢷⡀⢻⡄⢹⡆⠀⠀[red]⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⠿[/red]⠀⠀⣴⠿⠻⢿⣦⠀⠸⠿⢿⣿⠿⠿
+⣿⠀⣿⠀⣾⠃⠀⠀[red]⣿⣿⣶⣤⣀[/red]⠀⠘⠃⠈⣷⠈⠁⠀⠀[red]⣿⡷⠾⢿⣆⠀⢠⣶⠿⢷⣄⠀⢸⣿[/red]⠀⠀⢿⣶⣤⣌⡉⠀⠀⠀⢸⣿⠀⠀
+⣿⠀⣿⠀⢿⡀⠀⠀[red]⣿⣿⠿⠛⠉[/red]⠀⢠⡄⢀⡿⢀⡀⠀⠀[red]⣿⡇⠀⢸⣿⠀⢸⡷⠶⠾⠿⠀⢸⣿[/red]⠀⢀⣠⠈⠉⠻⣿⠀⠀⠀⢸⣿⠀⠀
+⢸⣇⠸⣧⠘⢷⣄⠀⣿⠀⠀⠀⠀⣠⡾⠁⣼⠃⣸⠇⠀⠀[red]⣿⡇⠀⢸⣿⠀⠘⢿⣤⣼⠗⠀⢸⣿[/red]⠀⠈⠻⣷⣶⣾⠟⠀⠀⠀⢸⣿⠀⠀
+⠀⠻⣆⠙⢷⣄⠙⠷⢿⣤⣤⡶⠞⠋⠀⠾⠃⣴⠏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠙⢷⣄⡙⠻⠶⣤⣤⣤⣴⠶⠟⢀⣤⠾⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠈⠛⠷⠶⣤⣼⣧⣤⠶⠞⠛⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                              
+                              
+The interactive heiST installation wizard.
+    """
+
+    console.print(logo)
+
+
 def clear_screen() -> None:
     if not supports_arrow_navigation():
         return
@@ -152,6 +186,8 @@ def clear_screen() -> None:
         console.file.flush()
     except Exception:
         console.clear()
+
+    draw_header()
 
 
 def supports_arrow_navigation() -> bool:
@@ -310,20 +346,20 @@ DEFAULTS = {
     "UBUNTU_BASE_SERVER_URL": "",
 
     # Paths / database / webserver
-    "DATABASE_FILES_DIR": "/root/ctf-challenger/database",
-    "DATABASE_NAME": "ctf_challenger",
+    "DATABASE_FILES_DIR": "/root/heiST/database",
+    "DATABASE_NAME": "heist",
     "DATABASE_USER": "postgres",
     "DATABASE_PASSWORD": "",
     "DATABASE_PORT": "5432",
     "DATABASE_HOST": "10.0.0.102",
-    "WEBSERVER_FILES_DIR": "/root/ctf-challenger/webserver",
+    "WEBSERVER_FILES_DIR": "/root/heiST/webserver",
     "WEBSERVER_USER": "www-data",
     "WEBSERVER_GROUP": "www-data",
     "WEBSERVER_ROOT": "/var/www/html",
     "WEBSERVER_HOST": "10.0.0.101",
     "WEBSERVER_HTTP_PORT": "80",
     "WEBSERVER_HTTPS_PORT": "443",
-    "BACKEND_FILES_DIR": "/root/ctf-challenger/backend",
+    "BACKEND_FILES_DIR": "/root/heiST/backend",
     "WEBSERVER_DATABASE_USER": "api_user",
     "WEBSERVER_DATABASE_PASSWORD": "",
     "WEBSITE_ADMIN_USER": "admin",
@@ -354,7 +390,7 @@ DEFAULTS = {
     "WAZUH_NETWORK_DEVICE": "vrtmon",
 
     # Monitoring / VM / observability
-    "MONITORING_FILES_DIR": "/root/ctf-challenger/monitoring",
+    "MONITORING_FILES_DIR": "/root/heiST/monitoring",
     "MONITORING_VM_NAME": "monitoring-vm",
     "MONITORING_VM_MAC_ADDRESS": "0E:00:00:00:00:03",
     "MONITORING_VM_MEMORY": "10240",
@@ -378,7 +414,7 @@ DEFAULTS = {
     "GRAFANA_PORT": "3000",
     "GRAFANA_USER": "admin",
     "GRAFANA_PASSWORD": "",
-    "GRAFANA_FILES_SETUP_DIR": "/root/ctf-challenger/monitoring/grafana",
+    "GRAFANA_FILES_SETUP_DIR": "/root/heiST/monitoring/grafana",
     "GRAFANA_FILES_DIR": "/etc/grafana",
     "PROMETHEUS_PORT": "9090",
     "POSTGRES_EXPORTER_PORT": "9187",
@@ -396,13 +432,13 @@ DEFAULTS = {
     "WAZUH_INDEXER_PASSWORD": "",
     "WAZUH_REGISTRATION_PORT": "1515",
     "WAZUH_COMMUNICATION_PORT": "1514",
-    "WAZUH_FILE_DIR": "/root/ctf-challenger/monitoring/wazuh",
+    "WAZUH_FILE_DIR": "/root/heiST/monitoring/wazuh",
     "CLICKHOUSE_HTTPS_PORT": "8443",
     "CLICKHOUSE_NATIVE_PORT": "9440",
     "CLICKHOUSE_USER": "default",
     "CLICKHOUSE_PASSWORD": "",
-    "CLICKHOUSE_SQL_DIR": "/root/ctf-challenger/monitoring/clickhouse/sql",
-    "VECTOR_FILES_DIR": "/root/ctf-challenger/monitoring/vector",
+    "CLICKHOUSE_SQL_DIR": "/root/heiST/monitoring/clickhouse/sql",
+    "VECTOR_FILES_DIR": "/root/heiST/monitoring/vector",
     "VECTOR_DIR": "/etc/vector",
     "SURICATA_LOG_DIR": "/var/log/suricata",
     "SURICATA_FILES_DIR": "/etc/suricata",
@@ -412,7 +448,7 @@ DEFAULTS = {
     "ROTATE_DAYS": "90",
     "PCAP_ROTATION_INTERVAL": "*/15",
     "DNSMASQ_BACKEND_DIR": "/etc/dnsmasq-backend",
-    "SSL_TLS_CERTS_DIR": "/root/ctf-challenger/setup/certs",
+    "SSL_TLS_CERTS_DIR": "/root/heiST/setup/certs",
     "PVE_EXPORTER_DIR": "/etc/pve-exporter",
     "IPTABLES_FILE": "/etc/iptables-backend/iptables.sh",
 }
@@ -512,7 +548,7 @@ ADVANCED_SECTIONS = [
         title="PostgreSQL and DB credentials",
         subtitle="Database connection details and credentials for backend and webapp access.",
         fields=[
-            field("DATABASE_NAME", "Database name", description="Name of the PostgreSQL database created during setup.", example="ctf_challenger"),
+            field("DATABASE_NAME", "Database name", description="Name of the PostgreSQL database created during setup.", example="heist"),
             field("DATABASE_USER", "Database user", description="PostgreSQL role used by the backend during setup.", example="postgres"),
             field("DATABASE_PASSWORD", "Database password", "secret", secret=True, description="Password assigned to the PostgreSQL role used by the challenge backend."),
             field("DATABASE_PORT", "Database port", "port", description="TCP port for PostgreSQL.", example="5432"),
@@ -663,7 +699,7 @@ ADVANCED_SECTIONS = [
             field("ROTATE_DAYS", "Log retention days", "integer", description="How many days logs should be retained before rotation/pruning.", example="90"),
             field("PCAP_ROTATION_INTERVAL", "PCAP rotation interval", description="Cron-style interval or schedule used for packet capture rotation.", example="*/15"),
             field("DNSMASQ_BACKEND_DIR", "Dnsmasq backend directory", "path", description="Directory used to store the backend dnsmasq configuration and leases.", example="/etc/dnsmasq-backend"),
-            field("SSL_TLS_CERTS_DIR", "SSL/TLS certificates directory", "path", description="Directory used by monitoring scripts to store trusted certificates.", example="/root/ctf-challenger/setup/certs"),
+            field("SSL_TLS_CERTS_DIR", "SSL/TLS certificates directory", "path", description="Directory used by monitoring scripts to store trusted certificates.", example="/root/heiST/setup/certs"),
             field("PVE_EXPORTER_DIR", "PVE exporter directory", "path", description="Directory used by the Proxmox exporter configuration.", example="/etc/pve-exporter"),
             field("IPTABLES_FILE", "Iptables script path", "path", description="Location of the generated iptables bootstrap script.", example="/etc/iptables-backend/iptables.sh"),
         ],
@@ -760,7 +796,7 @@ def write_credentials_markdown(values: dict[str, str]) -> None:
     ]
 
     lines = [
-        "# CTF-Challenger Credentials",
+        "# heiST Credentials",
         "",
         "> Generated by `installer_tui.py`. Treat this file as sensitive.",
         "",
@@ -835,7 +871,7 @@ def validate_value(field_spec: FieldSpec, value: str) -> str:
 def render_welcome() -> None:
     clear_screen()
     banner = Text()
-    banner.append("CTF-Challenger Installer", style="bold cyan")
+    banner.append("heiST Installer", style="bold cyan")
     banner.append("\n", style="white")
     banner.append("A guided setup wizard for first-time onboarding.", style="white")
     banner.append("\n", style="white")
@@ -1132,7 +1168,7 @@ def write_env_file(values: dict[str, str]) -> None:
     ]
 
     with ENV_FILE_PATH.open("w", encoding="utf-8") as env_file:
-        env_file.write("# Generated by the CTF-Challenger onboarding wizard\n")
+        env_file.write("# Generated by the heiST onboarding wizard\n")
         env_file.write(f"# Generated from: {Path(__file__).name}\n\n")
 
         for section_name, keys in sections:
@@ -1218,7 +1254,7 @@ def run_selected_action(action: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Interactive onboarding wizard for CTF-Challenger")
+    parser = argparse.ArgumentParser(description="Interactive onboarding wizard for heiST")
     parser.add_argument("--mode", choices=["simple", "advanced"], help="Skip the first menu and start in the selected mode.")
     args = parser.parse_args()
 
