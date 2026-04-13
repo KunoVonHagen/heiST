@@ -69,14 +69,25 @@ def install_local_packages():
     """Install required system packages for monitoring"""
     log_section("Installing Local Monitoring Packages")
 
+    debian_version = None
+    with open("/etc/os-release") as f:
+        for line in f:
+            if line.startswith("DEBIAN_VERSION_FULL="):
+                debian_version = line.strip().split("=")[1].strip('"')
+
+    if not debian_version:
+        debian_version = "12"
+
+
+
     # Add Zeek repository
     zeek_install_commands = [
         ["apt-get", "install", "-y", "apt-transport-https", "ca-certificates", "curl", "gnupg"],
         ["bash", "-c",
-         "curl -fsSL https://download.opensuse.org/repositories/security:zeek/Debian_12/Release.key | "
+         f"curl -fsSL https://download.opensuse.org/repositories/security:zeek/Debian_{debian_version}/Release.key | "
          "gpg --dearmor -o /etc/apt/trusted.gpg.d/zeek.gpg"],
         ["bash", "-c",
-         'echo "deb [arch=amd64] https://download.opensuse.org/repositories/security:/zeek/Debian_12/ /" | tee /etc/apt/sources.list.d/security:zeek.list'],
+         f'echo "deb [arch=amd64] https://download.opensuse.org/repositories/security:/zeek/Debian_{debian_version}/ /" | tee /etc/apt/sources.list.d/security.zeek.list'],
         ["apt-get", "update"]
     ]
 
