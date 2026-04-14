@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent
 REQUIREMENTS_PATH = SCRIPT_DIR / "requirements.txt"
 ENV_FILE_PATH = SCRIPT_DIR / ".env"
 CREDENTIALS_MD_PATH = SCRIPT_DIR / "credentials.md"
@@ -1381,10 +1382,10 @@ def run_selected_action(action: str) -> None:
     console.print(Panel("[bold]Tip:[/bold] the wizard already saved the final `.env` file before running anything.", border_style="blue"))
 
     if action in {"core", "both"}:
-        run_command([sys.executable, "setup.py"], SCRIPT_DIR)
+        run_command([sys.executable, "-m", "setup.setup"], PROJECT_ROOT)
 
     if action in {"monitoring", "both"}:
-        run_command([sys.executable, "setup_monitoring.py"], SCRIPT_DIR)
+        run_command([sys.executable, "-m", "setup.setup_monitoring"], PROJECT_ROOT)
 
 
 def main() -> None:
