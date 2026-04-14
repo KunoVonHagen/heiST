@@ -975,13 +975,13 @@ def setup_webserver():
     print("\tChanging Redis Configuration")
     execute_command("sudo systemctl enable redis-server")
     execute_command("sudo cp /etc/redis/redis.conf /etc/redis/redis.conf.backup")
-    execute_command("sudo sed -i -e 's/^bind 127\.0\.0\.1 -::1/#bind 127.0.0.1 -::1/' -e 's/^port 6379$/port 0/' -e 's|^# unixsocket /run/redis/redis-server.sock|unixsocket /run/redis/redis-server.sock|' -e 's/^# unixsocketperm 700/unixsocketperm 770/' /etc/redis/redis.conf")
+    execute_command(r"sudo sed -i -e 's/^bind 127\.0\.0\.1 -::1/#bind 127.0.0.1 -::1/' -e 's/^port 6379$/port 0/' -e 's|^# unixsocket /run/redis/redis-server.sock|unixsocket /run/redis/redis-server.sock|' -e 's/^# unixsocketperm 700/unixsocketperm 770/' /etc/redis/redis.conf")
     execute_command("sudo usermod -aG redis www-data")
     execute_command("sudo systemctl restart redis")
 
     # Enable Apache modules
     print("\tEnabling Apache modules")
-    php_version = execute_command("php -v | grep -oP 'PHP \K[0-9]+\.[0-9]+'")
+    php_version = execute_command(r"php -v | grep -oP 'PHP \K[0-9]+\.[0-9]+'")
     php_version = "".join([c for c in php_version if c.isdigit() or c == "."])
 
     execute_command(f"sudo a2enmod php{php_version}")
