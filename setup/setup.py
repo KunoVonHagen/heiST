@@ -578,14 +578,14 @@ def download_ubuntu_base_server_ova():
     print("\tChecking if Ubuntu Base Server OVA file already exists")
     if not os.path.exists("ubuntu-base-server/ubuntu-base-server.ova"):
         print("\tDownloading Ubuntu Base Server OVA file")
-        response = requests.get(UBUNTU_BASE_SERVER_URL, stream=True)
-        if response.status_code == 200:
-            with open("ubuntu-base-server/ubuntu-base-server.ova", "wb") as file:
-                for chunk in response.iter_content(chunk_size=8192):
-                    file.write(chunk)
-            print("\tDownloaded Ubuntu Base Server OVA.")
-        else:
-            print(f"\tFailed to download OVA: {response.status_code}")
+        try:
+            download_out = subprocess.run(["wget", "-O", "ubuntu-base-server/ubuntu-base-server.ova", UBUNTU_BASE_SERVER_URL], check=True, capture_output=True)
+            if download_out.returncode == 0:
+                print("\tSuccessfully downloaded Ubuntu Base Server OVA file")
+            else:
+                print(f"\tFailed to download OVA: {download_out.stderr.decode()}")
+        except subprocess.CalledProcessError as e:
+            print(f"\tFailed to download OVA: {e.stderr.decode()}")
 
     else:
         print("\tUbuntu Base Server OVA file already exists. Skipping download.")
