@@ -571,13 +571,17 @@ def download_ubuntu_base_server_ova():
     Download the Ubuntu Base Server OVA file.
     """
 
-    os.makedirs("ubuntu-base-server", exist_ok=True)
+    scrip_dir = os.path.dirname(os.path.realpath(__file__))
+    base_server_dir = os.path.join(scrip_dir, "ubuntu-base-server")
+    base_server_file = os.path.join(base_server_dir, "ubuntu-base-server.ova")
+
+    os.makedirs(base_server_dir, exist_ok=True)
 
     print("\tChecking if Ubuntu Base Server OVA file already exists")
-    if not os.path.exists("ubuntu-base-server/ubuntu-base-server.ova"):
+    if not os.path.exists(base_server_file):
         print("\tDownloading Ubuntu Base Server OVA file")
         try:
-            proc = subprocess.Popen(["wget", UBUNTU_BASE_SERVER_URL, "-O", "ubuntu-base-server/ubuntu-base-server.ova"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            proc = subprocess.Popen(["wget", UBUNTU_BASE_SERVER_URL, "-O", base_server_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = proc.communicate()
             if proc.returncode == 0:
                 print("\tSuccessfully downloaded Ubuntu Base Server OVA file")
@@ -587,6 +591,8 @@ def download_ubuntu_base_server_ova():
             print(f"\tFailed to download OVA: {e.stderr.decode()}")
     else:
         print("\tUbuntu Base Server OVA file already exists. Skipping download.")
+
+    return base_server_dir, base_server_file
 
 
 def check_user_input(user_input):
@@ -612,15 +618,15 @@ def setup_web_and_database_server(api_token):
     if os.path.exists("ubuntu-base-server") and not REUSE_DOWNLOADED_OVA:
         subprocess.run(["rm", "-rf", "ubuntu-base-server"], check=True, capture_output=True)
 
-    download_ubuntu_base_server_ova()
+    base_server_dir, base_server_file = download_ubuntu_base_server_ova()
 
     print("\tExtracting OVA file")
 
     # Extract the OVA file
-    subprocess.run(["tar", "-xf", "ubuntu-base-server/ubuntu-base-server.ova", "-C", "ubuntu-base-server"],
+    subprocess.run(["tar", "-xf", base_server_file, "-C", base_server_dir],
                    check=True, capture_output=True)
 
-    files = os.listdir("ubuntu-base-server")
+    files = os.listdir(base_server_dir)
     ovf_file = next((f for f in files if f.endswith('.ovf')), None)
     check_user_input(ovf_file)
 
@@ -628,11 +634,11 @@ def setup_web_and_database_server(api_token):
         raise FileNotFoundError("OVF file not found in the extracted OVA directory.")
 
     print("\tImporting OVA file as webserver")
-    importovf_command = f"qm importovf {webserver_id} \"ubuntu-base-server/{ovf_file}\" local-lvm"
+    importovf_command = f"qm importovf {webserver_id} \"{base_server_dir}/{ovf_file}\" local-lvm"
     subprocess.run(importovf_command, shell=True, check=True, capture_output=True)
 
     print("\tImporting OVA file as database server")
-    importovf_command = f"qm importovf {database_id} \"ubuntu-base-server/{ovf_file}\" local-lvm"
+    importovf_command = f"qm importovf {database_id} \"{base_server_dir}/{ovf_file}\" local-lvm"
     subprocess.run(importovf_command, shell=True, check=True, capture_output=True)
 
     proxmox = ProxmoxAPI("localhost", **api_token, verify_ssl=False)
