@@ -8,9 +8,6 @@ import sys
 
 load_dotenv()
 
-BACKEND_FILES_DIR = os.getenv('BACKEND_FILES_DIR', '/root/ctf-challenger/backend')
-sys.path.append(BACKEND_FILES_DIR)
-
 PROXMOX_HOST = os.getenv("PROXMOX_HOST", "10.0.0.1")
 PROXMOX_USER = os.getenv("PROXMOX_USER", "root@pam")
 PROXMOX_PASSWORD = os.getenv("PROXMOX_PASSWORD")

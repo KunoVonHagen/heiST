@@ -21,7 +21,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
 
-
 SCRIPT_DIR = Path(__file__).resolve().parent
 REQUIREMENTS_PATH = SCRIPT_DIR / "requirements.txt"
 ENV_FILE_PATH = SCRIPT_DIR / ".env"
