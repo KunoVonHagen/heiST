@@ -159,14 +159,14 @@ def draw_header() -> None:
     logo = r"""
 ⠀⠀⠀⠀⢀⣤⡶⠶⠛⠛⠛⠛⠶⢦⣤⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⣠⡾⠋⠡⣴⠶⠟⠛⠛⠻⢶⣤⣈⠛⢶⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⣴⠏⣠⡦⠀⣠⡴⠾⠛⠛⠶⢾⣇⠙⢷⡄⠻⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⢸⡏⢰⡟⢀⡾⠋⠀[red]⣀[/red]⠀⠀⠀⠀⠙⢷⡀⢻⡄⢹⡆⠀⠀[red]⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⠿[/red]⠀⠀⣴⠿⠻⢿⣦⠀⠸⠿⢿⣿⠿⠿
-⣿⠀⣿⠀⣾⠃⠀⠀[red]⣿⣿⣶⣤⣀[/red]⠀⠘⠃⠈⣷⠈⠁⠀⠀[red]⣿⡷⠾⢿⣆⠀⢠⣶⠿⢷⣄⠀⢸⣿[/red]⠀⠀⢿⣶⣤⣌⡉⠀⠀⠀⢸⣿⠀⠀
-⣿⠀⣿⠀⢿⡀⠀⠀[red]⣿⣿⠿⠛⠉[/red]⠀⢠⡄⢀⡿⢀⡀⠀⠀[red]⣿⡇⠀⢸⣿⠀⢸⡷⠶⠾⠿⠀⢸⣿[/red]⠀⢀⣠⠈⠉⠻⣿⠀⠀⠀⢸⣿⠀⠀
-⢸⣇⠸⣧⠘⢷⣄⠀⣿⠀⠀⠀⠀⣠⡾⠁⣼⠃⣸⠇⠀⠀[red]⣿⡇⠀⢸⣿⠀⠘⢿⣤⣼⠗⠀⢸⣿[/red]⠀⠈⠻⣷⣶⣾⠟⠀⠀⠀⢸⣿⠀⠀
+⠀⣴⠏⣠⡦⠀⣠⡴⠾⠛⠛⠶⢾⣇⠙⢷⡄⠻⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀         
+⢸⡏⢰⡟⢀⡾⠋⠀⣀⠀⠀⠀⠀⠙⢷⡀⢻⡄⢹⡆⠀⠀[red]⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⠿[/red]⠀⢀⣴⠿⠻⢿⣦⠀⠸⠿⢿⣿⠿⠿
+⣿⣀⣿⠀⣾⠃⠀⠀⣿[red]⣿⣶⣤⣀[/red]⠀⠘⠃⠈⣷⠈⠁⠀⠀[red]⣿⡷⠾⢿⣆⠀⢠⣶⠿⢷⣦⠀⢸⣿[/red]⠀⠘⢿⣶⣤⣌⡉⠀⠀⠀⢸⣿⠀⠀
+⣿⠉⣿⠀⢿⡀⠀⠀⣿[red]⣿⠿⠛⠉[/red]⠀⢠⡄⢀⡿⢀⡀⠀⠀[red]⣿⡇⠀⢸⣿⠀⢸⡿⠶⠾⠿⠀⢸⣿[/red]⠀⢀⣀⠈⠉⠻⣿⠀⠀⠀⢸⣿⠀⠀
+⢸⣇⠸⣧⠘⢷⣄⠀⣿⠀⠀⠀⠀⣠⡾⠁⣼⠃⣸⠇⠀⠀[red]⣿⡇⠀⢸⣿⠀⠘⢿⣤⣼⠟⠀⢸⣿[/red]⠀⠈⠻⣷⣶⣾⠟⠀⠀⠀⢸⣿⠀⠀
 ⠀⠻⣆⠙⢷⣄⠙⠷⢿⣤⣤⡶⠞⠋⠀⠾⠃⣴⠏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠙⢷⣄⡙⠻⠶⣤⣤⣤⣴⠶⠟⢀⣤⠾⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠈⠛⠷⠶⣤⣼⣧⣤⠶⠞⠛⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠈⠛⠷⠶⣤⣤⣤⣤⠶⠞⠛⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
                               
                               
 The interactive heiST installation wizard.
@@ -253,6 +253,8 @@ def arrow_select_menu(
     allow_back: bool = False,
     initial_index: int = 0,
     option_details: Optional[list[str]] = None,
+    divider_before: Optional[int] = None,
+    action_start_index: Optional[int] = None,
 ) -> Optional[int]:
     if not options:
         raise ValueError("Options cannot be empty.")
@@ -262,7 +264,10 @@ def arrow_select_menu(
     if not supports_arrow_navigation():
         console.print(Panel(subtitle, title=title, border_style="magenta"))
         for idx, option in enumerate(options, start=1):
-            console.print(f"[bold cyan]{idx})[/bold cyan] {option}")
+            if divider_before is not None and idx - 1 == divider_before:
+                console.rule("[magenta]Actions[/magenta]")
+            option_style = "magenta" if action_start_index is not None and idx - 1 >= action_start_index else "white"
+            console.print(f"[bold cyan]{idx})[/bold cyan] [{option_style}]{option}[/{option_style}]")
 
         choices = [str(idx) for idx in range(1, len(options) + 1)]
         if allow_back:
@@ -282,8 +287,15 @@ def arrow_select_menu(
         table.add_column("", width=2)
         table.add_column("Option")
         for idx, option in enumerate(options):
+            if divider_before is not None and idx == divider_before:
+                table.add_section()
+
+            is_action = action_start_index is not None and idx >= action_start_index
             marker = ">" if idx == index else " "
-            style = "bold cyan" if idx == index else "white"
+            if is_action:
+                style = "bold blue" if idx == index else "magenta"
+            else:
+                style = "bold cyan" if idx == index else "white"
             table.add_row(marker, f"[{style}]{option}[/{style}]")
         console.print(table)
 
@@ -515,45 +527,68 @@ SIMPLE_SECTION = SectionSpec(
         ),
     ],
 )
-
 ADVANCED_SECTIONS = [
     SectionSpec(
-        title="Proxmox connection",
-        subtitle="These values define how the installer talks to your Proxmox host.",
+        title="Proxmox Control Plane and Host Access",
+        subtitle="Configure Proxmox endpoint identity, API authentication, storage targets, and SSH access used during orchestration.",
         fields=[
             field("PROXMOX_HOST", "Proxmox host", "ip_or_host", description="The hostname or IP address of the Proxmox node or cluster entry point.", example="10.0.0.1"),
             field("PROXMOX_USER", "Proxmox user", description="The account used for API calls. The default is usually `root@pam`.", example="root@pam"),
             field("PROXMOX_PASSWORD", "Proxmox password", "secret", secret=True, description="Password for the Proxmox user above. The installer uses it to create API tokens and configure the host."),
             field("PROXMOX_PORT", "Proxmox API port", "port", description="The HTTPS API port for Proxmox. In most installations this is `8006`.", example="8006"),
             field("PROXMOX_HOSTNAME", "Proxmox node name", "hostname", description="The node name shown in the Proxmox UI and used by the API. Usually this is the Proxmox host's short hostname, for example `pve`.", example="pve"),
-            field("UBUNTU_BASE_SERVER_URL", "Ubuntu base server URL", "path", description="URL used to download the Ubuntu cloud image/base server artifact during setup."),
+            field("PROXMOX_LVM_STORAGE", "Proxmox LVM storage", description="Storage pool used when importing OVA disks.", example="local-lvm"),
+            field("PROXMOX_SSH_KEYFILE", "Proxmox SSH key file", "path", description="Path to the SSH private key used by auxiliary monitoring scripts.", example="/root/.ssh/id_rsa"),
+
         ],
     ),
+
     SectionSpec(
-        title="Repository and runtime paths",
-        subtitle="Filesystem paths used by setup scripts and deployed services.",
+        title="Base Image and Backend VM Provisioning",
+        subtitle="Define source artifacts and bootstrap inputs used to provision backend virtual machines consistently.",
         fields=[
-            field("BACKEND_FILES_DIR", "Backend files directory", "path", description="Absolute path to the backend source tree on the setup machine."),
-            field("DATABASE_FILES_DIR", "Database files directory", "path", description="Absolute path to the repository's database assets on the setup machine."),
-            field("WEBSERVER_FILES_DIR", "Webserver files directory", "path", description="Absolute path to the repository's webserver assets on the setup machine."),
-            field("MONITORING_FILES_DIR", "Monitoring files directory", "path", description="Absolute path to the monitoring repository tree on the setup machine."),
-            field("BACKEND_LOGGING_DIR", "Backend logging directory", "path", description="Directory on the backend VM where backend logs are written."),
+            field("UBUNTU_BASE_SERVER_URL", "Ubuntu base server URL", "path", description="URL used to download the Ubuntu cloud image/base server artifact during setup."),
+        ]
+    ),
+
+    SectionSpec(
+        title="NAT Edge Addressing and Exposure Rules",
+        subtitle="Set internal and external Proxmox addresses that drive NAT forwarding behavior and user-facing connectivity.",
+        fields = [
+            field("PROXMOX_INTERNAL_IP", "Proxmox internal IP", "ip",
+                  description="Internal IP address used for port-forwarding rules."),
+            field("PROXMOX_EXTERNAL_IP", "Proxmox external IP", "ip",
+                  description="External IP address exposed to VPN users or the public network."),
         ],
     ),
+
+SectionSpec(
+        title="Website Administration and Enrollment Controls",
+        subtitle="Configure administrative login identity and enrollment token controls for the challenge web interface.",
+        fields=[
+            field("WEBSITE_ADMIN_USER", "Website admin user", description="Admin username created in the challenge database.", example="admin"),
+            field("WEBSITE_ADMIN_PASSWORD", "Website admin password", "secret", secret=True, description="Password for the admin account in the challenge website."),
+            field("LECTURE_SIGNUP_TOKEN", "Lecture signup token", "secret", secret=True,
+                  description="Optional token used by lecture or signup flows in the web application."),
+
+        ],
+    ),
+
     SectionSpec(
-        title="Backend API and application auth",
-        subtitle="Backend API bind settings and authentication secrets used by the web app.",
+        title="Backend API Runtime and Trust Settings",
+        subtitle="Set backend listener ports, authentication secrets, logging paths, and local source directory mapping.",
         fields=[
             field("BACKEND_PORT", "Backend port", "port", description="The HTTP port the backend service listens on.", example="8000"),
             field("BACKEND_AUTHENTICATION_TOKEN", "Backend authentication token", "secret", secret=True, description="Shared secret used by the web application and backend API to authenticate requests."),
-            field("LECTURE_SIGNUP_TOKEN", "Lecture signup token", "secret", secret=True, description="Optional token used by lecture or signup flows in the web application."),
-            field("WEBSITE_ADMIN_USER", "Website admin user", description="Admin username created in the challenge database.", example="admin"),
-            field("WEBSITE_ADMIN_PASSWORD", "Website admin password", "secret", secret=True, description="Password for the admin account in the challenge website."),
+            field("BACKEND_LOGGING_DIR", "Backend logging directory", "path",
+                  description="Directory on the backend VM where backend logs are written."),
+            field("BACKEND_FILES_DIR", "Backend files directory", "path",
+                  description="Absolute path to the backend source tree on the setup machine."),
         ],
     ),
     SectionSpec(
-        title="PostgreSQL and DB credentials",
-        subtitle="Database connection details and credentials for backend and webapp access.",
+        title="PostgreSQL Service and Application Credentials",
+        subtitle="Configure database endpoint details, privileged roles, application users, and repository asset location.",
         fields=[
             field("DATABASE_NAME", "Database name", description="Name of the PostgreSQL database created during setup.", example="heist"),
             field("DATABASE_USER", "Database user", description="PostgreSQL role used by the backend during setup.", example="postgres"),
@@ -562,66 +597,87 @@ ADVANCED_SECTIONS = [
             field("DATABASE_HOST", "Database host", "ip", description="The IP address assigned to the database VM on the backend network.", example="10.0.0.102"),
             field("WEBSERVER_DATABASE_USER", "Webserver database user", description="Restricted database account used by the PHP web application.", example="api_user"),
             field("WEBSERVER_DATABASE_PASSWORD", "Webserver database password", "secret", secret=True, description="Password for the web application's PostgreSQL account."),
+            field("DATABASE_FILES_DIR", "Database files directory", "path",
+                  description="Absolute path to the repository's database assets on the setup machine."),
+
         ],
     ),
     SectionSpec(
-        title="Webserver service settings",
-        subtitle="Apache host, ports, ownership, and document-root settings.",
+        title="Webserver Runtime Ports and Filesystem Paths",
+        subtitle="Define webserver addressing, HTTP and HTTPS exposure, process ownership, and deployment directories.",
         fields=[
-            field("WEBSERVER_USER", "Webserver user", description="Linux user that owns or runs the web application files on the target VM.", example="www-data"),
-            field("WEBSERVER_GROUP", "Webserver group", description="Group ownership for the web application files.", example="www-data"),
-            field("WEBSERVER_ROOT", "Webserver document root", "path", description="Document root on the webserver VM.", example="/var/www/html"),
             field("WEBSERVER_HOST", "Webserver host", "ip", description="The IP address assigned to the webserver VM on the backend network.", example="10.0.0.101"),
             field("WEBSERVER_HTTP_PORT", "Webserver HTTP port", "port", description="HTTP port exposed by Apache.", example="80"),
             field("WEBSERVER_HTTPS_PORT", "Webserver HTTPS port", "port", description="HTTPS port exposed by Apache.", example="443"),
+            field("WEBSERVER_USER", "Webserver user", description="Linux user that owns or runs the web application files on the target VM.", example="www-data"),
+            field("WEBSERVER_GROUP", "Webserver group", description="Group ownership for the web application files.", example="www-data"),
+            field("WEBSERVER_ROOT", "Webserver document root", "path", description="Document root on the webserver VM.", example="/var/www/html"),
+            field("WEBSERVER_FILES_DIR", "Webserver files directory", "path", description="Absolute path to the repository's webserver assets on the setup machine."),
         ],
     ),
     SectionSpec(
-        title="Core network topology",
-        subtitle="Backend LAN, VPN space, and challenge routing boundaries.",
+        title="Backend Bridge Topology and Address Allocation",
+        subtitle="Set bridge subnetting, router defaults, DHCP bounds, and static MAC assignments for core service VMs.",
         fields=[
-            field("PROXMOX_INTERNAL_IP", "Proxmox internal IP", "ip", description="Internal IP address used for port-forwarding rules."),
-            field("PROXMOX_EXTERNAL_IP", "Proxmox external IP", "ip", description="External IP address exposed to VPN users or the public network."),
-            field("OPENVPN_SUBNET", "OpenVPN subnet", "interface", description="VPN client pool in CIDR form. The installer derives the server netmask from this value.", example="10.64.0.0/10"),
-            field("OPENVPN_SERVER_IP", "OpenVPN server IP", "ip", description="Static server IP address inside the VPN subnet.", example="10.64.0.1"),
             field("BACKEND_NETWORK_SUBNET", "Backend network subnet", "interface", description="Backend bridge subnet in interface notation, for example `10.0.0.1/24`.", example="10.0.0.1/24"),
             field("BACKEND_NETWORK_ROUTER", "Backend network router", "ip", description="Default gateway used by backend VMs on the bridge.", example="10.0.0.1"),
             field("BACKEND_NETWORK_DEVICE", "Backend bridge name", description="Linux bridge name created on the Proxmox host for backend traffic.", example="vrt_backend"),
             field("BACKEND_NETWORK_HOST_MIN", "Backend DHCP range start", "ip", description="First address handed out by dnsmasq for backend VMs.", example="10.0.0.2"),
             field("BACKEND_NETWORK_HOST_MAX", "Backend DHCP range end", "ip", description="Last address handed out by dnsmasq for backend VMs.", example="10.0.0.254"),
-            field("CHALLENGES_ROOT_SUBNET", "Challenges root subnet", "ip_or_host", description="Base subnet for challenge VM networks pushed to VPN clients.", example="10.128.0.0"),
-            field("CHALLENGES_ROOT_SUBNET_MASK", "Challenges root mask", description="Subnet mask paired with the challenge root network.", example="255.128.0.0"),
+            field("DATABASE_MAC_ADDRESS", "Database VM MAC address",
+                  description="Static MAC address assigned to the database VM.", example="0E:00:00:00:00:01"),
+            field("WEBSERVER_MAC_ADDRESS", "Webserver VM MAC address",
+                  description="Static MAC address assigned to the webserver VM.", example="0E:00:00:00:00:02"),
+            field("MONITORING_VM_MAC_ADDRESS", "Monitoring VM MAC address",
+                  description="Static MAC address assigned to the monitoring VM.", example="0E:00:00:00:00:03"),
+
         ],
     ),
+
+
     SectionSpec(
-        title="VM addressing and identity",
-        subtitle="Static VM IP/MAC values used by the core deployment.",
+        title="Challenge Network Routing and VPN Advertisement",
+        subtitle="Configure OpenVPN address pools and challenge root routes propagated to connected participants.",
         fields=[
-            field("DATABASE_MAC_ADDRESS", "Database VM MAC address", description="Static MAC address assigned to the database VM.", example="0E:00:00:00:00:01"),
-            field("WEBSERVER_MAC_ADDRESS", "Webserver VM MAC address", description="Static MAC address assigned to the webserver VM.", example="0E:00:00:00:00:02"),
+            field("OPENVPN_SUBNET", "OpenVPN subnet", "interface",
+                  description="VPN client pool in CIDR form. The installer derives the server netmask from this value.",
+                  example="10.64.0.0/10"),
+            field("OPENVPN_SERVER_IP", "OpenVPN server IP", "ip",
+                  description="Static server IP address inside the VPN subnet.", example="10.64.0.1"),
+            field("CHALLENGES_ROOT_SUBNET", "Challenges root subnet", "ip_or_host",
+                  description="Base subnet for challenge VM networks pushed to VPN clients.", example="10.128.0.0"),
+            field("CHALLENGES_ROOT_SUBNET_MASK", "Challenges root mask",
+                  description="Subnet mask paired with the challenge root network.", example="255.128.0.0"),
+
+        ],
+    ),
+
+    SectionSpec(
+        title="Monitoring VM Compute and Access Bootstrap",
+        subtitle="Specify monitoring virtual machine identity, resource sizing, initial access credentials, and setup paths.",
+        fields=[
             field("MONITORING_HOST", "Monitoring host", "ip", description="Static IP address of the monitoring VM on the backend network.", example="10.0.0.103"),
             field("MONITORING_VM_ID", "Monitoring VM ID", "integer", description="Proxmox VM ID reserved for the monitoring machine.", example="9000"),
             field("MONITORING_VM_NAME", "Monitoring VM name", description="Human-readable VM name shown in Proxmox.", example="monitoring-vm"),
-            field("MONITORING_VM_MAC_ADDRESS", "Monitoring VM MAC address", description="Static MAC address assigned to the monitoring VM.", example="0E:00:00:00:00:03"),
+            field("MONITORING_VM_MEMORY", "Monitoring VM memory (MB)", "integer",
+                  description="Memory assigned to the monitoring VM.", example="10240"),
+            field("MONITORING_VM_CORES", "Monitoring VM cores", "integer",
+                  description="Number of virtual CPU cores assigned to the monitoring VM.", example="2"),
+            field("MONITORING_VM_DISK", "Monitoring VM disk",
+                  description="Disk size or volume definition used for the monitoring VM.", example="32G"),
+            field("MONITORING_VM_USER", "Monitoring VM user", description="Default SSH user for the monitoring VM.",
+                  example="ubuntu"),
+            field("MONITORING_VM_PASSWORD", "Monitoring VM password", "secret", secret=True,
+                  description="Password used for the monitoring VM's initial SSH access."),
+
+            field("MONITORING_FILES_DIR", "Monitoring files directory", "path",
+                  description="Absolute path to the monitoring repository tree on the setup machine."),
+
         ],
     ),
     SectionSpec(
-        title="Monitoring VM resources and access",
-        subtitle="Monitoring VM compute sizing and host integration values.",
-        fields=[
-            field("MONITORING_VM_MEMORY", "Monitoring VM memory (MB)", "integer", description="Memory assigned to the monitoring VM.", example="10240"),
-            field("MONITORING_VM_CORES", "Monitoring VM cores", "integer", description="Number of virtual CPU cores assigned to the monitoring VM.", example="2"),
-            field("MONITORING_VM_DISK", "Monitoring VM disk", description="Disk size or volume definition used for the monitoring VM.", example="32G"),
-            field("MONITORING_VM_USER", "Monitoring VM user", description="Default SSH user for the monitoring VM.", example="ubuntu"),
-            field("MONITORING_VM_PASSWORD", "Monitoring VM password", "secret", secret=True, description="Password used for the monitoring VM's initial SSH access."),
-            field("PROXMOX_LVM_STORAGE", "Proxmox LVM storage", description="Storage pool used when importing OVA disks.", example="local-lvm"),
-            field("PROXMOX_SSH_KEYFILE", "Proxmox SSH key file", "path", description="Path to the SSH private key used by auxiliary monitoring scripts.", example="/root/.ssh/id_rsa"),
-            field("PROXMOX_EXPORTER_TOKEN_NAME", "Proxmox exporter token name", description="Token name used by the Proxmox exporter integration.", example="pve_exporter_token"),
-        ],
-    ),
-    SectionSpec(
-        title="Monitoring network interfaces",
-        subtitle="Monitoring bridge/interface names and cloud-init network ranges.",
+        title="Monitoring Fabric and Dual-Stack Network Wiring",
+        subtitle="Configure monitoring interfaces, Wazuh IPv6 segments, cloud-init bridge addressing, and internal DNS naming.",
         fields=[
             field("MONITORING_VPN_INTERFACE", "Monitoring VPN interface", description="Bridge or interface name used for monitoring traffic from the VPN side.", example="ctf_monitoring"),
             field("MONITORING_DMZ_INTERFACE", "Monitoring DMZ interface", description="Bridge or interface name used for monitoring the DMZ side.", example="dmz_monitoring"),
@@ -638,21 +694,22 @@ ADVANCED_SECTIONS = [
         ],
     ),
     SectionSpec(
-        title="Grafana and Prometheus",
-        subtitle="Core observability dashboards and metrics collector settings.",
+        title="Grafana Access Management and Provisioning Paths",
+        subtitle="Define Grafana service exposure, administrator credentials, and source-to-target provisioning directories.",
         fields=[
             field("GRAFANA_PORT", "Grafana port", "port", description="Port exposed by Grafana on the monitoring host.", example="3000"),
             field("GRAFANA_USER", "Grafana user", description="Grafana administrator username.", example="admin"),
             field("GRAFANA_PASSWORD", "Grafana password", "secret", secret=True, description="Grafana administrator password."),
             field("GRAFANA_FILES_SETUP_DIR", "Grafana setup directory", "path", description="Directory in the repository containing Grafana provisioning files."),
             field("GRAFANA_FILES_DIR", "Grafana install directory", "path", description="Destination directory for Grafana configuration on the target host."),
-            field("PROMETHEUS_PORT", "Prometheus port", "port", description="Port exposed by Prometheus.", example="9090"),
         ],
     ),
     SectionSpec(
-        title="Exporter endpoints",
-        subtitle="Ports and credentials for database, Proxmox, VM, and Apache exporters.",
+        title="Prometheus Scrape Endpoints and Exporter Ports",
+        subtitle="Configure Prometheus listener ports and exporter integration endpoints across Proxmox and service VMs.",
         fields=[
+            field("PROMETHEUS_PORT", "Prometheus port", "port", description="Port exposed by Prometheus.",
+                  example="9090"),
             field("POSTGRES_EXPORTER_PORT", "Postgres exporter port", "port", description="Port exposed by the postgres exporter.", example="9187"),
             field("POSTGRES_EXPORTER_PASSWORD", "Postgres exporter password", "secret", secret=True, description="Password used by the PostgreSQL exporter component."),
             field("PROXMOX_EXPORTER_PORT", "Proxmox exporter port", "port", description="Port exposed by the Proxmox exporter.", example="9221"),
@@ -661,11 +718,14 @@ ADVANCED_SECTIONS = [
             field("WEBSERVER_VM_EXPORTER_PORT", "Webserver VM exporter port", "port", description="Node exporter port for the webserver VM.", example="9100"),
             field("WEBSERVER_APACHE_EXPORTER_PORT", "Apache exporter port", "port", description="Port exposed by the Apache exporter.", example="9117"),
             field("PROXMOX_NODE_EXPORTER_PORT", "Proxmox node exporter port", "port", description="Port exposed by the Proxmox node exporter.", example="9101"),
+            field("PROXMOX_EXPORTER_TOKEN_NAME", "Proxmox exporter token name",
+                  description="Token name used by the Proxmox exporter integration.", example="pve_exporter_token"),
+
         ],
     ),
     SectionSpec(
-        title="Wazuh services and credentials",
-        subtitle="Wazuh API, manager, dashboard, indexer, and enrollment configuration.",
+        title="Wazuh Control Stack and Agent Enrollment Settings",
+        subtitle="Set Wazuh manager, API, dashboard, indexer, and agent enrollment credentials with required ports.",
         fields=[
             field("WAZUH_MANAGER_PORT", "Wazuh manager port", "port", description="Port exposed by the Wazuh manager service.", example="9200"),
             field("WAZUH_API_PORT", "Wazuh API port", "port", description="Port used by the Wazuh API.", example="55000"),
@@ -682,8 +742,8 @@ ADVANCED_SECTIONS = [
         ],
     ),
     SectionSpec(
-        title="ClickHouse core settings",
-        subtitle="ClickHouse ports, credentials, and SQL bootstrap path.",
+        title="ClickHouse Core Connectivity and Bootstrap Parameters",
+        subtitle="Define ClickHouse transport ports, access credentials, and SQL bootstrap file location for initialization.",
         fields=[
             field("CLICKHOUSE_HTTPS_PORT", "ClickHouse HTTPS port", "port", description="HTTPS port exposed by ClickHouse.", example="8443"),
             field("CLICKHOUSE_NATIVE_PORT", "ClickHouse native port", "port", description="Native protocol port exposed by ClickHouse.", example="9440"),
@@ -693,8 +753,8 @@ ADVANCED_SECTIONS = [
         ],
     ),
     SectionSpec(
-        title="Vector, Suricata, Zeek, and log rotation",
-        subtitle="Network telemetry ingestion, IDS paths, and retention/rotation knobs.",
+        title="Telemetry Pipelines, IDS Assets, and Retention Policies",
+        subtitle="Configure Vector, Suricata, Zeek, and log retention paths governing telemetry ingestion and archival lifecycle.",
         fields=[
             field("VECTOR_FILES_DIR", "Vector files directory", "path", description="Directory containing Vector configuration files in the repository."),
             field("VECTOR_DIR", "Vector install directory", "path", description="Destination directory for Vector configuration on the target host."),
@@ -712,6 +772,7 @@ ADVANCED_SECTIONS = [
         ],
     ),
 ]
+
 
 ALL_SECTIONS = [SIMPLE_SECTION, *ADVANCED_SECTIONS]
 # Build an ordered, deduplicated list of field specs.
@@ -951,6 +1012,33 @@ def choose_mode(preselected: Optional[str] = None) -> str:
     return "simple"
 
 
+def prompt_with_editable_prefill(prompt_label: str, current: str) -> str:
+    """Prompt with the current value prefilled so users can edit in place."""
+    if os.name != "nt":
+        try:
+            import readline
+
+            if sys.stdout.isatty():
+                # Wrap ANSI escapes with readline markers so cursor math stays correct.
+                prompt_text = f"\001\033[1;36m\002{prompt_label}\001\033[0m\002: "
+            else:
+                prompt_text = f"{prompt_label}: "
+
+            def startup_hook() -> None:
+                readline.insert_text(current)
+
+            readline.set_startup_hook(startup_hook)
+            try:
+                return input(prompt_text)
+            finally:
+                readline.set_startup_hook()
+        except Exception:
+            # Fallback to a normal prompt if readline prefill is unavailable.
+            pass
+
+    return Prompt.ask(f"[bold cyan]{prompt_label}[/bold cyan]", default=current, show_default=True)
+
+
 def prompt_field(field_spec: FieldSpec, current_values: dict[str, str]) -> str:
     clear_screen()
     current = current_values.get(field_spec.name, DEFAULTS.get(field_spec.name, ""))
@@ -968,12 +1056,16 @@ def prompt_field(field_spec: FieldSpec, current_values: dict[str, str]) -> str:
     console.print(Panel("\n".join(details), border_style="green", padding=(1, 2)))
 
     while True:
-        answer = Prompt.ask(
-            f"[bold cyan]{field_spec.name}[/bold cyan]",
-            default=current,
-            password=field_spec.secret,
-            show_default=False,
-        )
+        if field_spec.secret:
+            answer = Prompt.ask(
+                f"[bold cyan]{field_spec.name}[/bold cyan]",
+                default=current,
+                password=True,
+                show_default=False,
+            )
+        else:
+            answer = prompt_with_editable_prefill(field_spec.name, current)
+
         try:
             validated = validate_value(field_spec, answer)
             return validated
@@ -1067,9 +1159,13 @@ def run_configuration_menu(initial_mode: str, current_values: dict[str, str], or
             menu_items.append(("section", idx))
             menu_options.append(f"Edit section: {section.title} ({changed}/{len(section.fields)} changed)")
 
+        action_start_index = len(menu_options)
         if mode == "simple":
             menu_items.append(("advanced", None))
             menu_options.append("Switch to advanced mode")
+        else:
+            menu_items.append(("simple", None))
+            menu_options.append("Switch to simple mode")
 
         menu_items.extend([
             ("review", None),
@@ -1090,6 +1186,8 @@ def run_configuration_menu(initial_mode: str, current_values: dict[str, str], or
                 "Use arrow keys to choose a section or action.",
             ]),
             menu_options,
+            divider_before=action_start_index,
+            action_start_index=action_start_index,
         )
 
         action, index = menu_items[selected]
@@ -1115,6 +1213,10 @@ def run_configuration_menu(initial_mode: str, current_values: dict[str, str], or
 
         if action == "advanced" and mode == "simple":
             mode = "advanced"
+            continue
+
+        if action == "simple" and mode == "advanced":
+            mode = "simple"
             continue
 
         if action == "section" and index is not None:
