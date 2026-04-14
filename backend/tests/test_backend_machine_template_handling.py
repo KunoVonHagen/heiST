@@ -2,11 +2,11 @@ import sys
 import os
 import time
 
-BACKEND_DIR = "/root/ctf-challenger/backend"
-TEST_UTILS_DIR = os.path.join(BACKEND_DIR, "tests", "utils")
+BACKEND_FILES_DIR = os.getenv('BACKEND_FILES_DIR', '/root/ctf-challenger/backend')
+TEST_UTILS_DIR = os.path.join(BACKEND_FILES_DIR, "tests", "utils")
 
 sys.path.append(TEST_UTILS_DIR)
-sys.path.append(BACKEND_DIR)
+sys.path.append(BACKEND_FILES_DIR)
 
 from mock_db import MockDatabase
 from test_challenge_template_setup import test_plain_ubuntu_setup

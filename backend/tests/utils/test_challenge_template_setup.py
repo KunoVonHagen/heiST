@@ -2,8 +2,8 @@ import os
 import sys
 import subprocess
 
-BACKEND_DIR = "/root/ctf-challenger/backend"
-sys.path.append(BACKEND_DIR)
+BACKEND_FILES_DIR = os.getenv('BACKEND_FILES_DIR', '/root/ctf-challenger/backend')
+sys.path.append(BACKEND_FILES_DIR)
 from import_machine_templates import import_machine_templates
 from delete_machine_templates import delete_machine_templates
 from test_user_setup import test_user_setup

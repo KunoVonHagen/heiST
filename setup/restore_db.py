@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BACKEND_DIR = "/root/ctf-challenger/backend"
-sys.path.append(BACKEND_DIR)
+BACKEND_FILES_DIR = os.getenv('BACKEND_FILES_DIR', '/root/ctf-challenger/backend')
+sys.path.append(BACKEND_FILES_DIR)
 
 from backup_db import backup_database
 

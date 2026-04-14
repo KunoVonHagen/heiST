@@ -13,8 +13,8 @@ import re
 
 load_dotenv()
 
-BACKEND_DIR = "/root/ctf-challenger/backend"
-sys.path.append(BACKEND_DIR)
+BACKEND_FILES_DIR = os.getenv('BACKEND_FILES_DIR', '/root/ctf-challenger/backend')
+sys.path.append(BACKEND_FILES_DIR)
 
 PROXMOX_HOST = os.getenv("PROXMOX_HOST", "10.0.0.1")
 PROXMOX_USER = os.getenv("PROXMOX_USER", "root@pam")
@@ -1455,7 +1455,7 @@ def setup_database(conn=None, create_admin_config=True):
     conn.commit()
 
     # Setup the challenge subnets and VPN static IPs
-    from subnet_calculations import nth_challenge_subnet, nth_vpn_static_ip
+    from ..backend.subnet_calculations import nth_challenge_subnet, nth_vpn_static_ip
 
     if not connection_managed_externally:
         print("\tGenerating challenge subnets")
@@ -1495,7 +1495,7 @@ def setup_database(conn=None, create_admin_config=True):
                        (admin_user_id, vpn_static_ip))
 
     if create_admin_config:
-        from get_user_config import get_user_config
+        from ..backend.get_user_config import get_user_config
         if not connection_managed_externally:
             print("\tCreating user config")
         get_user_config(admin_user_id, conn)

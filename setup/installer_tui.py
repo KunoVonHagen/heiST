@@ -182,10 +182,10 @@ def clear_screen() -> None:
     # 2J clears the visible screen, 3J clears scrollback, H moves the cursor home.
     # If ANSI is not supported, fallback to Rich's standard clear.
     try:
+        console.clear()
+    except Exception:
         console.file.write("\x1b[2J\x1b[3J\x1b[H")
         console.file.flush()
-    except Exception:
-        console.clear()
 
     draw_header()
 

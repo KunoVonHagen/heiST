@@ -10,8 +10,8 @@ import random
 
 load_dotenv()
 
-BACKEND_DIR = "/root/ctf-challenger/backend"
-sys.path.append(BACKEND_DIR)
+BACKEND_FILES_DIR = os.getenv('BACKEND_FILES_DIR', '/root/ctf-challenger/backend')
+sys.path.append(BACKEND_FILES_DIR)
 
 DATABASE_FILES_DIR = os.getenv("DATABASE_FILES_DIR", "/root/ctf-challenger/database")
 DATABASE_NAME = os.getenv("DATABASE_NAME", "ctf_challenger")
