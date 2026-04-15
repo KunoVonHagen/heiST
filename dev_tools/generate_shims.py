@@ -75,7 +75,7 @@ def find_candidate_scripts(root: Path):
 def write_shim(target_module: str, shim_path: Path):
     shim_text = f"""#!/usr/bin/env bash
 # Auto-generated shim - runs the module as a package so package-relative imports work
-exec /usr/bin/env python3 -m {target_module} "\$@"
+exec /usr/bin/env python3 -m {target_module} "$@"
 """
     shim_path.write_text(shim_text)
     # chmod later in batch
