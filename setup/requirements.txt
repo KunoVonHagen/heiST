@@ -2,6 +2,6 @@ flask
 proxmoxer
 testing.postgresql
 rich
-psycopg2
+psycopg2-binary
 tenacity
 dotenv
