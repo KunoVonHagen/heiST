@@ -19,6 +19,8 @@ from backend.get_user_config import get_user_config
 load_dotenv()
 
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 PROXMOX_HOST = os.getenv("PROXMOX_HOST", "10.0.0.1")
 PROXMOX_USER = os.getenv("PROXMOX_USER", "root@pam")
 PROXMOX_PASSWORD = os.getenv("PROXMOX_PASSWORD")
@@ -1518,8 +1520,7 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory={BACKEND_FILES_DIR}
-ExecStart=/usr/bin/python3 {BACKEND_FILES_DIR}/api.py
+ExecStart={PROJECT_ROOT}/bin/api
 Restart=always
 RestartSec=5
 TimeoutStartSec=0
@@ -1549,7 +1550,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory={BACKEND_FILES_DIR}
-ExecStart=/usr/bin/python3 -u {BACKEND_FILES_DIR}/pool_manager.py
+ExecStart={PROJECT_ROOT}/bin/pool_manager
 Restart=always
 RestartSec=5
 TimeoutStartSec=0

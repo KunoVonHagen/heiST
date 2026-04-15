@@ -1,10 +1,8 @@
-import requests
 from dotenv import load_dotenv
 import os
 from proxmoxer import ProxmoxAPI
 import subprocess
 import datetime
-import sys
 
 load_dotenv()
 
@@ -162,7 +160,7 @@ def remove_openvpn_server():
     print("\tRemoving OpenVPN configuration files")
     openvpn_config_dir = "/etc/openvpn/"
     subprocess.run(["rm", "-rf", openvpn_config_dir], capture_output=True)
-    import os
+
     os.makedirs(openvpn_config_dir, exist_ok=True)
 
 

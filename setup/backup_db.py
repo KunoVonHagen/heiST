@@ -1,11 +1,8 @@
-import requests
 from dotenv import load_dotenv
 import os
-from proxmoxer import ProxmoxAPI
 import subprocess
 import datetime
 import time
-import sys
 import random
 
 load_dotenv()

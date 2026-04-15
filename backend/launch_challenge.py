@@ -1,20 +1,26 @@
-import random
-import subprocess
 import threading
-
-from subnet_calculations import nth_network_subnet
-from DatabaseClasses import *
-from proxmox_api_calls import *
-import os
 import shlex
-from stop_challenge import stop_challenge
-from warmup_challenge import warmup_challenge
-import time
-from dotenv import load_dotenv, find_dotenv
+from dotenv import find_dotenv, load_dotenv
 import hashlib
 import hmac
-from launch_timing_logger import launch_timing_logger
-from get_db_connection import run_with_db_connection
+import os
+import time
+import fcntl
+import subprocess
+
+from backend.DatabaseClasses import (
+    ChallengeTemplate,
+    Challenge,
+    MachineTemplate,
+    Machine,
+    NetworkTemplate,
+    Network,
+    Connection
+)
+from backend.stop_challenge import stop_challenge
+from backend.warmup_challenge import warmup_challenge
+from backend.launch_timing_logger import launch_timing_logger
+from backend.get_db_connection import run_with_db_connection
 
 load_dotenv(find_dotenv())
 
@@ -27,9 +33,9 @@ WAZUH_ENROLLMENT_PASSWORD = os.getenv("WAZUH_ENROLLMENT_PASSWORD")
 DNSMASQ_INSTANCES_DIR = "/etc/dnsmasq-instances/"
 os.makedirs(DNSMASQ_INSTANCES_DIR, exist_ok=True)
 
-
 challenge_launch_lock_dir = "/var/lock/challenge_launch_locks/"
 os.makedirs(challenge_launch_lock_dir, exist_ok=True)
+
 
 @run_with_db_connection
 def launch_challenge(challenge_template_id, user_id, vpn_monitoring_device, dmz_monitoring_device, db_conn=None):
@@ -37,7 +43,7 @@ def launch_challenge(challenge_template_id, user_id, vpn_monitoring_device, dmz_
     Launch a challenge by creating a user and network device.
     """
 
-
+    launch_lock = None
 
     try:
         launch_lock = acquire_exclusive_launch_lock(user_id)
@@ -45,7 +51,8 @@ def launch_challenge(challenge_template_id, user_id, vpn_monitoring_device, dmz_
 
         try:
             start_time_db_fetch = time.time()
-            print(f"[Info] DB fetch started for user {user_id} and challenge template {challenge_template_id}", flush=True)
+            print(f"[Info] DB fetch started for user {user_id} and challenge template {challenge_template_id}",
+                  flush=True)
             user_vpn_ip = fetch_user_vpn_ip(user_id, db_conn)
             user_email = fetch_user_email(user_id, db_conn)
             challenge_template = ChallengeTemplate(challenge_template_id)
@@ -56,12 +63,15 @@ def launch_challenge(challenge_template_id, user_id, vpn_monitoring_device, dmz_
             raise ValueError(f"Error fetching from database: {e}")
 
         try:
-            print(f"[Info] Attempting to get ready challenge for template {challenge_template_id} and user {user_id}", flush=True)
+            print(f"[Info] Attempting to get ready challenge for template {challenge_template_id} and user {user_id}",
+                  flush=True)
             challenge = get_ready_challenge(challenge_template, db_conn)
             if challenge is None:
                 running_warmup_challenge_id = try_attach_to_running_warmup(challenge_template_id, user_id, db_conn)
                 if running_warmup_challenge_id is not None:
-                    print(f"[Info] Attached to running warmup challenge {running_warmup_challenge_id} for template {challenge_template_id} and user {user_id}", flush=True)
+                    print(
+                        f"[Info] Attached to running warmup challenge {running_warmup_challenge_id} for template {challenge_template_id} and user {user_id}",
+                        flush=True)
 
                     while challenge is None:
                         running_warmup_challenge_id = check_running_warmup(challenge_template_id, user_id, db_conn)
@@ -72,13 +82,17 @@ def launch_challenge(challenge_template_id, user_id, vpn_monitoring_device, dmz_
                         time.sleep(1)
 
             if challenge is None:
-                print(f"[Info] No ready challenge found and attaching failed, creating new challenge for template {challenge_template_id} and user {user_id}", flush=True)
-                challenge = warmup_challenge(user_id, challenge_template.id, vpn_monitoring_device, dmz_monitoring_device)
+                print(
+                    f"[Info] No ready challenge found and attaching failed, creating new challenge for template {challenge_template_id} and user {user_id}",
+                    flush=True)
+                challenge = warmup_challenge(user_id, challenge_template.id, vpn_monitoring_device,
+                                             dmz_monitoring_device)
 
             print(f"[Info] Adding running challenge {challenge.id} to user {user_id}", flush=True)
             add_running_challenge_to_user(challenge, user_id, db_conn)
 
-            print(f"[Info] Got challenge {challenge.id} for template {challenge_template_id} and user {user_id}", flush=True)
+            print(f"[Info] Got challenge {challenge.id} for template {challenge_template_id} and user {user_id}",
+                  flush=True)
             fetch_machines(challenge, db_conn)
 
             print(f"[Info] Fetched machines for challenge {challenge.id}", flush=True)
@@ -101,7 +115,8 @@ def launch_challenge(challenge_template_id, user_id, vpn_monitoring_device, dmz_
             launch_timing_logger(start_time_network, "[NETWORK SETUP COMPLETE]", challenge_template_id, user_id)
 
             start_time_user_flags = time.time()
-            print(f"[Info] Starting user-specific flag processing for challenge {challenge.id} and user {user_id}", flush=True)
+            print(f"[Info] Starting user-specific flag processing for challenge {challenge.id} and user {user_id}",
+                  flush=True)
             process_all_user_specific_flags(challenge, user_email)
             launch_timing_logger(start_time_user_flags, "[USER FLAGS COMPLETE]", challenge_template_id, user_id)
 
@@ -119,11 +134,15 @@ def launch_challenge(challenge_template_id, user_id, vpn_monitoring_device, dmz_
         accessible_networks = [network.subnet for network in challenge.networks.values() if network.accessible]
         accessible_networks.sort()
 
-
         launch_timing_logger(start_time, "[LAUNCH COMPLETE]", challenge_template_id, user_id)
 
     finally:
-        release_exclusive_launch_lock(user_id, launch_lock)
+        if launch_lock is not None:
+            try:
+                release_exclusive_launch_lock(user_id, launch_lock)
+            except Exception:
+                # if releasing fails, just log and continue
+                print(f"[Warning] Failed to release launch lock for user {user_id}", flush=True)
 
     return accessible_networks
 
@@ -135,21 +154,18 @@ def try_attach_to_running_warmup(challenge_template_id, user_id, db_conn):
 
     with db_conn.cursor() as cursor:
         cursor.execute("""
-            WITH running_warmup AS (
-                SELECT id
-                FROM challenges
-                WHERE challenge_template_id = %s
-                AND lifecycle_state = 'PROVISIONING'
-                AND pre_assigned_user_id IS NULL
-                ORDER BY id
-                LIMIT 1
-                FOR UPDATE SKIP LOCKED
-            )
-            UPDATE challenges
-            SET pre_assigned_user_id = %s
-            WHERE id IN (SELECT id FROM running_warmup)
-            RETURNING id;
-        """, (challenge_template_id, user_id))
+                       WITH running_warmup AS (SELECT id
+                                               FROM challenges
+                                               WHERE challenge_template_id = %s
+                                                 AND lifecycle_state = 'PROVISIONING'
+                                                 AND pre_assigned_user_id IS NULL
+                                               ORDER BY id
+                                               LIMIT 1 FOR UPDATE SKIP LOCKED)
+                       UPDATE challenges
+                       SET pre_assigned_user_id = %s
+                       WHERE id IN (SELECT id FROM running_warmup)
+                       RETURNING id;
+                       """, (challenge_template_id, user_id))
         row = cursor.fetchone()
 
         if row is None:
@@ -165,13 +181,13 @@ def check_running_warmup(challenge_template_id, user_id, db_conn):
 
     with db_conn.cursor() as cursor:
         cursor.execute("""
-            SELECT id
-            FROM challenges
-            WHERE challenge_template_id = %s
-            AND lifecycle_state in ('PROVISIONING', 'READY')
-            AND pre_assigned_user_id = %s
-            LIMIT 1;
-        """, (challenge_template_id, user_id))
+                       SELECT id
+                       FROM challenges
+                       WHERE challenge_template_id = %s
+                         AND lifecycle_state in ('PROVISIONING', 'READY')
+                         AND pre_assigned_user_id = %s
+                       LIMIT 1;
+                       """, (challenge_template_id, user_id))
         row = cursor.fetchone()
 
         if row is None:
@@ -216,10 +232,10 @@ def fetch_machines(challenge, db_conn):
 
     with db_conn.cursor() as cursor:
         cursor.execute("""
-            SELECT id, machine_template_id
-            FROM machines
-            WHERE challenge_id = %s
-            """, (challenge.id,))
+                       SELECT id, machine_template_id
+                       FROM machines
+                       WHERE challenge_id = %s
+                       """, (challenge.id,))
 
         for row in cursor.fetchall():
             machine_id = row[0]
@@ -230,6 +246,7 @@ def fetch_machines(challenge, db_conn):
             challenge.add_machine(machine)
             machine_template.set_child(machine)
 
+
 def fetch_networks_and_connections(challenge, db_conn):
     """
     Fetch networks and connections for the given challenge.
@@ -237,11 +254,12 @@ def fetch_networks_and_connections(challenge, db_conn):
 
     with db_conn.cursor() as cursor:
         cursor.execute("""
-            SELECT n.id, n.network_template_id, n.subnet, n.host_device, nt.accessible
-            FROM networks n, network_templates nt
-            WHERE n.challenge_id = %s
-            AND n.network_template_id = nt.id
-            """, (challenge.id,))
+                       SELECT n.id, n.network_template_id, n.subnet, n.host_device, nt.accessible
+                       FROM networks n,
+                            network_templates nt
+                       WHERE n.challenge_id = %s
+                         AND n.network_template_id = nt.id
+                       """, (challenge.id,))
 
         for row in cursor.fetchall():
             network_id = row[0]
@@ -255,12 +273,12 @@ def fetch_networks_and_connections(challenge, db_conn):
             challenge.add_network(network)
 
         cursor.execute("""
-            SELECT machine_id, network_id, client_mac, client_ip
-            FROM network_connections
-            WHERE network_id IN (
-                SELECT id FROM networks WHERE challenge_id = %s
-            )
-            """, (challenge.id,))
+                       SELECT machine_id, network_id, client_mac, client_ip
+                       FROM network_connections
+                       WHERE network_id IN (SELECT id
+                                            FROM networks
+                                            WHERE challenge_id = %s)
+                       """, (challenge.id,))
 
         for row in cursor.fetchall():
             machine_id = row[0]
@@ -285,20 +303,17 @@ def get_ready_challenge(challenge_template, db_conn, user_id=None):
     with db_conn.cursor() as cursor:
         if user_id is None:
             cursor.execute("""
-                WITH ready_challenges AS (
-                    SELECT id, subnet
-                    FROM challenges
-                    WHERE challenge_template_id = %s
-                    AND lifecycle_state = 'READY'
-                    ORDER BY id
-                    LIMIT 1
-                    FOR UPDATE SKIP LOCKED
-                )
-                UPDATE challenges
-                SET lifecycle_state = 'ASSIGNED'
-                WHERE id IN (SELECT id FROM ready_challenges)
-                RETURNING id, subnet;
-            """, (challenge_template.id,))
+                           WITH ready_challenges AS (SELECT id, subnet
+                                                     FROM challenges
+                                                     WHERE challenge_template_id = %s
+                                                       AND lifecycle_state = 'READY'
+                                                     ORDER BY id
+                                                     LIMIT 1 FOR UPDATE SKIP LOCKED)
+                           UPDATE challenges
+                           SET lifecycle_state = 'ASSIGNED'
+                           WHERE id IN (SELECT id FROM ready_challenges)
+                           RETURNING id, subnet;
+                           """, (challenge_template.id,))
             row = cursor.fetchone()
 
             if row is None:
@@ -311,21 +326,18 @@ def get_ready_challenge(challenge_template, db_conn, user_id=None):
             return challenge
         else:
             cursor.execute("""
-                WITH ready_challenges AS (
-                    SELECT id, subnet
-                    FROM challenges
-                    WHERE pre_assigned_user_id = %s
-                    AND challenge_template_id = %s
-                    AND lifecycle_state = 'READY'
-                    ORDER BY id
-                    LIMIT 1
-                    FOR UPDATE SKIP LOCKED
-                )
-                UPDATE challenges
-                SET lifecycle_state = 'ASSIGNED'
-                WHERE id IN (SELECT id FROM ready_challenges)
-                RETURNING id, subnet;
-            """, (user_id, challenge_template.id))
+                           WITH ready_challenges AS (SELECT id, subnet
+                                                     FROM challenges
+                                                     WHERE pre_assigned_user_id = %s
+                                                       AND challenge_template_id = %s
+                                                       AND lifecycle_state = 'READY'
+                                                     ORDER BY id
+                                                     LIMIT 1 FOR UPDATE SKIP LOCKED)
+                           UPDATE challenges
+                           SET lifecycle_state = 'ASSIGNED'
+                           WHERE id IN (SELECT id FROM ready_challenges)
+                           RETURNING id, subnet;
+                           """, (user_id, challenge_template.id))
             row = cursor.fetchone()
 
             if row is None:
@@ -338,46 +350,14 @@ def get_ready_challenge(challenge_template, db_conn, user_id=None):
             return challenge
 
 
-
-def clone_machines(challenge_template, challenge, db_conn):
-    """
-    Clone machines from the given machine template IDs.
-    """
-
-    max_machine_id = 899_999_999
-
-    for machine_template in challenge_template.machine_templates.values():
-        with db_conn.cursor() as cursor:
-            cursor.execute("""
-            INSERT INTO machines (machine_template_id, challenge_id)
-            VALUES (%s, %s)
-            RETURNING id
-            """, (machine_template.id, challenge.id))
-
-            machine_id = cursor.fetchone()[0]
-
-            if machine_id > max_machine_id:
-                raise ValueError("Machine ID exceeds maximum limit")
-
-            machine = Machine(machine_id=machine_id, template=machine_template, challenge=challenge)
-
-            # Add machine template to challenge template
-            challenge.add_machine(machine)
-            machine_template.set_child(machine)
-
-        clone_vm_api_call(machine_template, machine)
-
-
-
 def vmid_to_ipv6(vmid, offset=0x1000):
     """
     Create ipv6 address from a VMID.
     """
     host_id = offset + vmid
     high = (host_id >> 16) & 0xFFFF
-    low  = host_id & 0xFFFF
+    low = host_id & 0xFFFF
     return f"fd12:3456:789a:1::{high:x}:{low:x}"
-
 
 
 def wait_for_qemu_guest_agent(machine, timeout=120):
@@ -392,7 +372,8 @@ def wait_for_qemu_guest_agent(machine, timeout=120):
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
 
             if result.returncode == 0:
-                launch_timing_logger(start_time, f"[GUEST AGENT RESPONDED]", machine.challenge.template.id, None, VM_ID=machine.id)
+                launch_timing_logger(start_time, f"[GUEST AGENT RESPONDED]", machine.challenge.template.id, None,
+                                     VM_ID=machine.id)
                 return True
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
             pass
@@ -460,12 +441,14 @@ def process_all_user_specific_flags(challenge, user_email):
         print(f"[Error] Failed to process flags for challenge {challenge.id}, user {user_email}: {e}", flush=True)
         raise e
 
-    print(f"[Info] Finished generating user-specific flags for challenge {challenge.id} and user {user_email}", flush=True)
+    print(f"[Info] Finished generating user-specific flags for challenge {challenge.id} and user {user_email}",
+          flush=True)
 
     try:
         flag_write_threads = []
         for machine_id, flags in flags_by_machine.items():
-            flag_write_threads.append(threading.Thread(target=write_user_specific_flags_to_vm, args=(machine_id, flags)))
+            flag_write_threads.append(
+                threading.Thread(target=write_user_specific_flags_to_vm, args=(machine_id, flags)))
 
         print("[Info] Starting threads", flush=True)
 
@@ -498,7 +481,7 @@ def write_user_specific_flags_to_vm(machine_id, flags):
     if flag_write_command != "":
         flag_write_command = flag_write_command.rstrip(" && ")
         result = subprocess.run(["qm", "guest", "exec", str(machine_id), "--",
-                    "bash", "-c", flag_write_command], capture_output=True, text=True)
+                                 "bash", "-c", flag_write_command], capture_output=True, text=True)
 
         if result.returncode != 0:
             raise RuntimeError(f"Failed to write flags to VM {machine_id}: {result.stderr}")
@@ -565,11 +548,11 @@ def fetch_challenge_flags(challenge_template, db_conn):
     """
     with db_conn.cursor() as cursor:
         cursor.execute("""
-           SELECT id, flag, description, points, order_index, user_specific, machine_template_id
-           FROM challenge_flags
-           WHERE challenge_template_id = %s
-           ORDER BY order_index
-       """, (challenge_template.id,))
+                       SELECT id, flag, description, points, order_index, user_specific, machine_template_id
+                       FROM challenge_flags
+                       WHERE challenge_template_id = %s
+                       ORDER BY order_index
+                       """, (challenge_template.id,))
 
         challenge_template.flags = []
         for row in cursor.fetchall():
@@ -592,9 +575,9 @@ def add_iptables_rules(challenge, user_vpn_ip, vpn_monitoring_device, dmz_monito
 
     # Remove general user block from an earlier challenge stop
     subprocess.run(["iptables", "-D", "FORWARD", "-s", user_vpn_ip, "-d", CHALLENGES_ROOT_SUBNET_CIDR, "-j", "DROP"],
-                     check=False, capture_output=True)
+                   check=False, capture_output=True)
     subprocess.run(["iptables", "-D", "FORWARD", "-s", CHALLENGES_ROOT_SUBNET_CIDR, "-d", user_vpn_ip, "-j", "DROP"],
-                     check=False, capture_output=True)
+                   check=False, capture_output=True)
 
     for network in challenge.networks.values():
         # Allow intra-network traffic
@@ -648,7 +631,7 @@ def add_iptables_rules(challenge, user_vpn_ip, vpn_monitoring_device, dmz_monito
                  CHALLENGES_ROOT_SUBNET_CIDR, "-j", "MASQUERADE"], check=True)
             subprocess.run(
                 ["iptables", "-A", "FORWARD", "-i", network.host_device, "-o", "vmbr0", "-s", network.subnet, "!",
-                 "-d", CHALLENGES_ROOT_SUBNET_CIDR, "-m","conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j",
+                 "-d", CHALLENGES_ROOT_SUBNET_CIDR, "-m", "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j",
                  "ACCEPT"], check=True)
             subprocess.run(
                 ["iptables", "-A", "FORWARD", "-i", "vmbr0", "-o", network.host_device, "-d", network.subnet, "!",
@@ -729,7 +712,7 @@ def reset_expiration_timer(challenge_id, db_conn, expiration_duration_minutes=60
 
     with db_conn.cursor() as cursor:
         cursor.execute("""
-            UPDATE challenges
-            SET expires_at = CURRENT_TIMESTAMP + INTERVAL '%s minutes'
-            WHERE id = %s
-        """, (expiration_duration_minutes, challenge_id))
+                       UPDATE challenges
+                       SET expires_at = CURRENT_TIMESTAMP + INTERVAL '%s minutes'
+                       WHERE id = %s
+                       """, (expiration_duration_minutes, challenge_id))

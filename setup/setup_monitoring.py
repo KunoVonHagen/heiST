@@ -431,16 +431,29 @@ def validate_scripts() -> Tuple[bool, List[str]]:
     return len(missing_scripts) == 0, missing_scripts
 
 
+def script_path_to_module(script_path: str) -> str:
+    """
+    From the path of the script, generate the
+    """
+
+
 def get_script_command(script_path: str) -> List[str]:
     """
-    Build the command to execute a script with appropriate flags
+    Build the command to execute a script with appropriate flags, convert a path into a module execution to preserve structure
     """
-    command = [sys.executable, script_path]
+
+    if MONITORING_FILES_DIR in script_path:
+        filename = Path(script_path).name.replace(".py", "")
+        command = [sys.executable, "-m", f"monitoring.{filename}"]
+    else:
+        raise Exception(f"Script path {script_path} is not a valid script path")
 
     if DEBUG_MODE:
         command.append("--debug")
 
     return command
+
+
 
 
 # ===== SCRIPT EXECUTION =====

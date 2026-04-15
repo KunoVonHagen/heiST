@@ -1,10 +1,19 @@
-import subprocess
-from proxmox_api_calls import *
-from DatabaseClasses import MachineTemplate, ChallengeTemplate
 from hashlib import sha256
 import json
-import time
 import random
+import os
+import subprocess
+import time
+import base64
+
+
+from backend.DatabaseClasses import MachineTemplate, ChallengeTemplate
+from backend.proxmox_api_calls import (
+    attach_cloud_init_drive,
+    add_network_device_api_call,
+    initial_configuration_api_call,
+    launch_vm_api_call
+)
 
 def import_machine_templates(challenge_template_id, db_conn, ip_pool):
     """

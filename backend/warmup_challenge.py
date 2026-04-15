@@ -1,20 +1,39 @@
 import random
-import subprocess
 import threading
-
-from subnet_calculations import nth_network_subnet
-from DatabaseClasses import *
-from proxmox_api_calls import *
-import os
-import shlex
-from teardown_challenge import remove_database_entries, stop_dnsmasq_instances,remove_challenge_from_wazuh
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 import time
 from dotenv import load_dotenv, find_dotenv
-import hashlib
-import hmac
-from launch_timing_logger import launch_timing_logger
-from get_db_connection import run_with_db_connection
+import os
+import subprocess
+
+
+from backend.DatabaseClasses import (
+    ChallengeTemplate,
+    Challenge,
+    ChallengeSubnet,
+    MachineTemplate,
+    Machine,
+    NetworkTemplate,
+    Network,
+    ConnectionTemplate,
+    Connection,
+    DomainTemplate,
+    Domain,
+
+)
+from backend.proxmox_api_calls import (
+    clone_vm_api_call,
+    add_network_device_api_call,
+    create_network_api_call,
+    reload_network_api_call,
+    attach_networks_to_vm_api_call,
+    launch_vm_api_call,
+    delete_network_api_call
+)
+from backend.subnet_calculations import nth_network_subnet, nth_machine_ip
+from backend.teardown_challenge import remove_database_entries, stop_dnsmasq_instances,remove_challenge_from_wazuh
+from backend.launch_timing_logger import launch_timing_logger
+from backend.get_db_connection import run_with_db_connection
 
 load_dotenv(find_dotenv())
 

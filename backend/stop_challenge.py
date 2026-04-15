@@ -1,13 +1,8 @@
-from DatabaseClasses import *
-from proxmox_api_calls import *
 import subprocess
 import os
-import time
-import requests
-import urllib3
-from tenacity import retry, stop_after_attempt, wait_fixed
 from dotenv import load_dotenv, find_dotenv
-from get_db_connection import run_with_db_connection
+
+from backend.get_db_connection import run_with_db_connection
 
 load_dotenv(find_dotenv())
 

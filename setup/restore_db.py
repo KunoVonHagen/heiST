@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from backup_db import backup_database
+from setup.backup_db import backup_database
 
 DATABASE_NAME = os.getenv("DATABASE_NAME", "heist")
 DATABASE_USER = os.getenv("DATABASE_USER", "postgres")
