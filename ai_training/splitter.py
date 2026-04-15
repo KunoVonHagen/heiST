@@ -51,7 +51,7 @@ class PacketClassifier:
 class ChallengeMapper:
     """Maps IP addresses and timestamps to challenge templates."""
 
-    def __init__(self, db_host: str, db_user: str, db_pass: str, db_name: str = "ctf_challenger",
+    def __init__(self, db_host: str, db_user: str, db_pass: str, db_name: str = "heist",
                  time_tolerance: float = 5.0, prefer_closest: bool = True):
         self.db_host = db_host
         self.db_user = db_user
@@ -849,7 +849,7 @@ def main():
         print("  --db-host <host>          Database host (default: 10.0.0.102)")
         print("  --db-user <user>          Database username (required)")
         print("  --db-pass <pass>          Database password (required)")
-        print("  --db-name <name>          Database name (default: ctf_challenger)")
+        print("  --db-name <name>          Database name (default: heist)")
         print("\nTime Options:")
         print("  --time-tolerance <sec>    Time tolerance (default: 5.0)")
         print("  --first-match             Use first match instead of closest (default: closest)")
@@ -869,7 +869,7 @@ def main():
     db_host = "10.0.0.102"
     db_user = None
     db_pass = None
-    db_name = "ctf_challenger"
+    db_name = "heist"
     out_dir = './split_pcaps'
     compress = True
     allowed_network = '10.128.0.0/9'

@@ -18,19 +18,11 @@ sys.stdout.reconfigure(line_buffering=True)
 
 # Load environment variables
 load_dotenv()
-MONITORING_FILES_DIR = os.getenv("MONITORING_FILES_DIR","/root/ctf-challenger/monitoring")
-UTILS_DIR = f"{MONITORING_FILES_DIR}/utils"
-BACKEND_PATH = os.getenv("BACKEND_FILES_DIR", "/root/ctf-challenger/backend")
-
-# Import the script_helper module
-sys.path.append(UTILS_DIR)
-sys.path.append(BACKEND_PATH)
-
-from script_helper import (
+from monitoring.utils.script_helper import (
     log_info, log_debug, log_error, log_warning, log_success, log_section,
     execute_remote_command, execute_remote_command_with_key, run_cmd, Timer, time_function, DEBUG_MODE
 )
-from proxmox_api_calls import add_network_device_api_call
+from backend.proxmox_api_calls import add_network_device_api_call
 
 # ==== CONFIGURATION CONSTANTS ====
 BRIDGE_NAME = os.getenv("WAZUH_NETWORK_DEVICE", "vrtmon")

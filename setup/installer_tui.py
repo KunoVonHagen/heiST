@@ -26,6 +26,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 REQUIREMENTS_PATH = SCRIPT_DIR / "requirements.txt"
 ENV_FILE_PATH = SCRIPT_DIR / ".env"
 CREDENTIALS_MD_PATH = SCRIPT_DIR / "credentials.md"
+BOOTSTRAP_SENTINEL_ENV = "HEIST_TUI_BOOTSTRAPPED"
 
 
 def _run_bootstrap_command(command: list[str], description) -> None:
@@ -116,15 +117,49 @@ def install_system_dependencies() -> None:
 
 def install_python_dependencies() -> None:
     command = [sys.executable, "-m", "pip", "install", "-r", str(REQUIREMENTS_PATH)]
-    if os.name != "nt":
-        command.append("--break-system-packages")
     _run_bootstrap_command(command, description="Installing dependencies with `pip`")
+
+
+def _is_running_in_venv() -> bool:
+    return getattr(sys, "prefix", None) != getattr(sys, "base_prefix", None)
+
+
+def _venv_python_path() -> Path:
+    if os.name == "nt":
+        return SCRIPT_DIR / ".venv" / "Scripts" / "python.exe"
+    return SCRIPT_DIR / ".venv" / "bin" / "python"
+
+
+def _bootstrap_into_project_venv() -> None:
+    venv_python = _venv_python_path()
+    venv_dir = venv_python.parent.parent
+
+    if not venv_python.exists():
+        _run_bootstrap_command(
+            [sys.executable, "-m", "venv", str(venv_dir)],
+            description=f"Creating virtual environment at {venv_dir}",
+        )
+
+    _run_bootstrap_command(
+        [str(venv_python), "-m", "pip", "install", "-r", str(REQUIREMENTS_PATH)],
+        description="Installing dependencies into the virtual environment",
+    )
+
+    env = os.environ.copy()
+    env[BOOTSTRAP_SENTINEL_ENV] = "1"
+    os.execvpe(str(venv_python), [str(venv_python), str(Path(__file__).resolve()), *sys.argv[1:]], env)
 
 
 def bootstrap_requirements() -> None:
     try:
-        install_system_dependencies()
-        install_python_dependencies()
+        if _is_running_in_venv():
+            install_python_dependencies()
+            return
+
+        if os.environ.get(BOOTSTRAP_SENTINEL_ENV) != "1":
+            install_system_dependencies()
+
+        _bootstrap_into_project_venv()
     except subprocess.CalledProcessError as exc:
         raise SystemExit(f"Failed to install installer requirements (exit code {exc.returncode}).") from exc
 

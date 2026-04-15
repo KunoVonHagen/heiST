@@ -75,7 +75,7 @@ def decompress_file(filepath: str) -> Tuple[str, Optional[str]]:
 class TemporalRuleLoader:
     """Loads temporal removal rules from database."""
 
-    def __init__(self, db_host: str, db_user: str, db_pass: str, db_name: str = "ctf_challenger"):
+    def __init__(self, db_host: str, db_user: str, db_pass: str, db_name: str = "heist"):
         self.db_host = db_host
         self.db_user = db_user
         self.db_pass = db_pass
@@ -434,7 +434,7 @@ def main():
         print("  --db-host <host>          Database host (default: 10.0.0.102)")
         print("  --db-user <user>          Database username")
         print("  --db-pass <pass>          Database password")
-        print("  --db-name <name>          Database name (default: ctf_challenger)")
+        print("  --db-name <name>          Database name (default: heist)")
         print("\nStatic IP Options:")
         print("  --static-ips <ip,ip,...>  Comma-separated IPs that should be removed")
         print("  --static-ips-file <file>  File with one IP per line")
@@ -461,7 +461,7 @@ def main():
     db_host = "10.0.0.102"
     db_user = None
     db_pass = None
-    db_name = "ctf_challenger"
+    db_name = "heist"
     static_ips_str = None
     static_ips_file = None
     allowed_network = '10.128.0.0/9'

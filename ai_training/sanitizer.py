@@ -31,7 +31,7 @@ except ImportError:
 class IPAllowList:
     """Manages time-based IP allowlisting using database consent and trace data."""
 
-    def __init__(self, db_host: str, db_user: str, db_pass: str, db_name: str = "ctf_challenger",
+    def __init__(self, db_host: str, db_user: str, db_pass: str, db_name: str = "heist",
                  time_tolerance: float = 5.0):
         self.db_host = db_host
         self.db_user = db_user
@@ -614,7 +614,7 @@ def main():
         print("  --db-host <host>          Database host (default: 10.0.0.102)")
         print("  --db-user <user>          Database username (required)")
         print("  --db-pass <pass>          Database password (required)")
-        print("  --db-name <name>          Database name (default: ctf_challenger)")
+        print("  --db-name <name>          Database name (default: heist)")
         print("  --time-tolerance <sec>    Time tolerance in seconds (default: 5.0)")
         print("\nOutput Options:")
         print("  --out-dir <dir>           Output directory (default: current)")
@@ -633,7 +633,7 @@ def main():
     db_host = "10.0.0.102"
     db_user = None
     db_pass = None
-    db_name = "ctf_challenger"
+    db_name = "heist"
     time_tolerance = 5.0
     out_dir = '.'
     suffix = '_allowed'
