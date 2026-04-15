@@ -170,10 +170,6 @@ from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 from rich.text import Text
-import msvcrt
-import termios
-import tty
-import readline
 
 
 
@@ -232,6 +228,8 @@ def supports_arrow_navigation() -> bool:
 
 def read_key_event() -> str:
     if os.name == "nt":
+        import msvcrt
+
         first = msvcrt.getwch()
         if first == "\x03":
             raise KeyboardInterrupt
@@ -249,6 +247,9 @@ def read_key_event() -> str:
                 return "down"
             return "other"
         return f"char:{first.lower()}"
+
+    import termios
+    import tty
 
     fd = sys.stdin.fileno()
     previous = termios.tcgetattr(fd)
@@ -1047,6 +1048,8 @@ def prompt_with_editable_prefill(prompt_label: str, current: str) -> str:
     """Prompt with the current value prefilled so users can edit in place."""
     if os.name != "nt":
         try:
+            import readline
+
             if sys.stdout.isatty():
                 # Wrap ANSI escapes with readline markers so cursor math stays correct.
                 prompt_text = f"\001\033[1;36m\002{prompt_label}\001\033[0m\002: "
