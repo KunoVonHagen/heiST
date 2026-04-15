@@ -1384,9 +1384,7 @@ def run_command(command: list[str], cwd: Path) -> None:
 def choose_action(mode: str) -> str:
     options = [
         "Save only",
-        "Save and run the core setup (`setup.py`)",
-        "Save and run the monitoring setup (`setup_monitoring.py`)",
-        "Save and run both setup scripts",
+        "Save and run setup",
     ]
 
     selected = arrow_select_menu(
@@ -1397,13 +1395,6 @@ def choose_action(mode: str) -> str:
 
     if selected == 0:
         return "save"
-    if selected == 1:
-        return "core"
-    if selected == 2:
-        return "monitoring"
-
-    if mode == "simple":
-        console.print("[yellow]Monitoring setup usually expects the advanced configuration values. Simple mode can still proceed, but review the defaults carefully.[/yellow]")
     return "both"
 
 
@@ -1413,11 +1404,8 @@ def run_selected_action(action: str) -> None:
 
     console.print(Panel("[bold]Tip:[/bold] the wizard already saved the final `.env` file before running anything.", border_style="blue"))
 
-    if action in {"core", "both"}:
-        run_command([sys.executable, "-m", "setup.setup"], PROJECT_ROOT)
-
-    if action in {"monitoring", "both"}:
-        run_command([sys.executable, "-m", "setup.setup_monitoring"], PROJECT_ROOT)
+    run_command([sys.executable, "-m", "setup.setup"], PROJECT_ROOT)
+    run_command([sys.executable, "-m", "setup.setup_monitoring"], PROJECT_ROOT)
 
 
 def main() -> None:
