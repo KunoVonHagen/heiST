@@ -861,17 +861,16 @@ def generate_password_without_special(length: int = 24) -> str:
 
     secrets.SystemRandom().shuffle(password)
 
-    return "".join(password)
+    # Ensure at least one special character, this worked last time but more complicated special characters might cause
+    # issues, so we just stick with this for now
+    return "".join(password) + "!"
 
 
 def build_generated_password_defaults() -> dict[str, str]:
     generated: dict[str, str] = {}
     for key in DEFAULTS:
         if key.endswith("_PASSWORD") and key != "PROXMOX_PASSWORD":
-            if not "DATABASE_PASSWORD" in key: # Database passwords may be used in contexts where special characters cause issues
-                generated[key] = generate_password_value()
-            else:
-                generated[key] = generate_password_without_special()
+            generated[key] = generate_password_without_special()
     return generated
 
 

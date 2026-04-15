@@ -69,7 +69,7 @@ def install_local_packages():
     with open("/etc/os-release") as f:
         for line in f:
             if line.startswith("DEBIAN_VERSION_FULL="):
-                debian_version = line.strip().split("=")[1].strip('"')
+                debian_version = line.strip().split("=")[1].strip('"').split(".")[0]
 
     if not debian_version:
         debian_version = "12"
