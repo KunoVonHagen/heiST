@@ -4,4 +4,13 @@ testing.postgresql
 rich
 psycopg2-binary
 tenacity
-dotenv
+python-dotenv
+requests
+beautifulsoup4
+playwright
+numpy
+paramiko
+scapy
+statsmodels
+PyYAML
+urllib3
