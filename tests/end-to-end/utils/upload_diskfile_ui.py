@@ -1,5 +1,5 @@
 import os
-from .login_user_ui import login_user_ui
+from login_user_ui import login_user_ui
 from automatic_challenge_import.yaml_parser import retrieve_ova_data
 
 

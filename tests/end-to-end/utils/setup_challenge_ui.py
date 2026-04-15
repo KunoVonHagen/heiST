@@ -1,5 +1,5 @@
-from .login_user_ui import login_user_ui
-from .upload_diskfile_ui import upload_all_diskfiles_ui
+from login_user_ui import login_user_ui
+from upload_diskfile_ui import upload_all_diskfiles_ui
 from automatic_challenge_import.yaml_parser import yaml_to_dict
 
 

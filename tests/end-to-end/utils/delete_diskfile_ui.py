@@ -1,4 +1,4 @@
-from .login_user_ui import login_user_ui
+from login_user_ui import login_user_ui
 
 
 def delete_diskfile_ui(page, display_name, username=None, password=None, login=False, prints=False):

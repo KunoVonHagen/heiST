@@ -10,6 +10,11 @@ import subprocess
 import datetime
 import sys
 import re
+import time
+import psycopg2
+
+from backend.subnet_calculations import nth_challenge_subnet, nth_vpn_static_ip
+from backend.get_user_config import get_user_config
 
 load_dotenv()
 
@@ -599,8 +604,6 @@ def check_user_input(user_input):
     """
     Sanitize user input to prevent command injection attacks.
     """
-    import re
-
     blacklist_pattern = r"""[;&|><`$\\'"*?{}\[\]~!#()=]+"""
     if re.search(blacklist_pattern, user_input):
         raise ValueError("Input contains potentially dangerous characters.")
@@ -1203,9 +1206,6 @@ def validate_running_and_reachable(webserver_id, database_id, api_token, timeout
     """
     Validate that the webserver and database server are running and reachable.
     """
-    import time
-    import psycopg2
-
     proxmox = ProxmoxAPI("localhost", **api_token, verify_ssl=False)
 
     # Check if the webserver and database server are running
@@ -1391,8 +1391,6 @@ def setup_database(conn=None, create_admin_config=True):
     connection_managed_externally = conn is not None
 
     if not conn:
-        import psycopg2
-
         conn = psycopg2.connect(
             dbname=DATABASE_NAME,
             user=DATABASE_USER,
@@ -1459,8 +1457,6 @@ def setup_database(conn=None, create_admin_config=True):
     conn.commit()
 
     # Setup the challenge subnets and VPN static IPs
-    from ..backend.subnet_calculations import nth_challenge_subnet, nth_vpn_static_ip
-
     if not connection_managed_externally:
         print("\tGenerating challenge subnets")
     challenge_subnet_base = "10.128.0.0"
@@ -1499,7 +1495,6 @@ def setup_database(conn=None, create_admin_config=True):
                        (admin_user_id, vpn_static_ip))
 
     if create_admin_config:
-        from ..backend.get_user_config import get_user_config
         if not connection_managed_externally:
             print("\tCreating user config")
         get_user_config(admin_user_id, conn)
