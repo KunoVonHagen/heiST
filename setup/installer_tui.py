@@ -106,10 +106,7 @@ def install_system_dependencies() -> None:
                 "install",
                 "-y",
                 "python3",
-                "python3-pip",
-                "python3-psycopg2",
-                "python3-dotenv",
-                "python3-tenacity",
+                "python3-pip"
             ]
         ), description="Installing dependencies available on `apt`"
     )
