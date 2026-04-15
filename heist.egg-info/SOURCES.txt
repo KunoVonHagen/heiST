@@ -57,7 +57,7 @@ monitoring/vector/configure_vector.py
 monitoring/wazuh/banner/banner_server.py
 setup/__init__.py
 setup/backup_db.py
-setup/installer_tui.py
+setup/install.py
 setup/restore_db.py
 setup/setup.py
 setup/setup_monitoring.py
