@@ -7,7 +7,7 @@ import requests
 import subprocess
 import os
 
-from DatabaseClasses import (
+from backend.DatabaseClasses import (
     ChallengeTemplate,
     ChallengeSubnet,
     Challenge,
@@ -17,13 +17,13 @@ from DatabaseClasses import (
     Network,
     Connection
 )
-from proxmox_api_calls import (
+from backend.proxmox_api_calls import (
     vm_exists_api_call,
     delete_network_api_call,
     reload_network_api_call,
     network_device_exists_api_call
 )
-from get_db_connection import run_with_db_connection
+from backend.get_db_connection import run_with_db_connection
 
 load_dotenv(find_dotenv())
 

@@ -419,7 +419,7 @@ def setup_clickhouse(headers):
     # Check if ClickHouse plugin is installed
     if not is_plugin_installed(headers, CLICKHOUSE_PLUGIN_ID):
         log_info("ClickHouse plugin not installed, installing...")
-        execute_remote_command_with_key(GRAFANA_HOST_URL, f"sudo grafana-cli plugins install {CLICKHOUSE_PLUGIN_ID}", SSH_USER, ssh_key_path=PROXMOX_SSH_KEYFILE, shell=True)
+        execute_remote_command_with_key(GRAFANA_HOST_URL, f"sudo grafana --homepath /usr/share/grafana cli plugins install {CLICKHOUSE_PLUGIN_ID}", SSH_USER, ssh_key_path=PROXMOX_SSH_KEYFILE, shell=True)
         execute_remote_command_with_key(GRAFANA_HOST_URL, "sudo systemctl restart grafana-server", SSH_USER, ssh_key_path=PROXMOX_SSH_KEYFILE)
 
         time.sleep(10)

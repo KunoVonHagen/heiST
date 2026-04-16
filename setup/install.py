@@ -123,15 +123,89 @@ def _is_running_in_venv() -> bool:
 
 def _venv_python_path() -> Path:
     if os.name == "nt":
-        return SCRIPT_DIR / ".venv" / "Scripts" / "python.exe"
-    return SCRIPT_DIR / ".venv" / "bin" / "python"
+        return PROJECT_ROOT / ".venv" / "Scripts" / "python.exe"
+    return PROJECT_ROOT / ".venv" / "bin" / "python"
+
+
+def _check_python_version() -> bool:
+    major, minor = sys.version_info[:2]
+    return (major, minor) == (3, 12)
+
+def _install_python_version_312_and_create_venv() -> None:
+    installation_script_path = SCRIPT_DIR / "install_python_3_12.sh"
+
+    with open(installation_script_path, "w") as f:
+        f.write(f"""#!/usr/bin/env bash
+set -euo pipefail
+
+PYTHON_VERSION="3.12.2"
+VENV_DIR="{PROJECT_ROOT}/.venv"
+
+echo "[1/6] Installing system dependencies..."
+apt update
+apt install -y \
+  build-essential curl git \
+  libssl-dev zlib1g-dev libbz2-dev libreadline-dev \
+  libsqlite3-dev libffi-dev liblzma-dev tk-dev \
+  libncursesw5-dev libgdbm-dev libnss3-dev libexpat1-dev
+
+echo "[2/6] Installing pyenv..."
+if [ ! -d "$HOME/.pyenv" ]; then
+  curl https://pyenv.run | bash
+fi
+
+echo "[3/6] Configuring shell environment..."
+
+# Add only if not already present
+grep -q 'PYENV_ROOT' ~/.bashrc || cat >> ~/.bashrc <<'EOF'
+
+# pyenv setup
+export PYENV_ROOT="$HOME/.pyenv"
+export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init -)"
+EOF
+
+# Load for current session
+export PYENV_ROOT="$HOME/.pyenv"
+export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init -)"
+
+echo "[4/6] Installing Python $PYTHON_VERSION..."
+pyenv install -s "$PYTHON_VERSION"
+
+echo "[5/6] Creating virtual environment..."
+pyenv shell "$PYTHON_VERSION"
+python -m venv "$VENV_DIR"
+
+echo "[6/6] Done."
+echo "Activate with:"
+echo "  source $VENV_DIR/bin/activate"
+echo "Python version:"
+"$VENV_DIR/bin/python" --version""")
+
+    installation_script_path.chmod(0o755)
+
+    _run_bootstrap_command(
+        [str(installation_script_path)],
+        description="Installing Python 3.12 using pyenv (this may take a few minutes)"
+    )
 
 
 def _bootstrap_into_project_venv() -> None:
+    """
+    Bootstraps into the project virtual environment, creating it and installing dependencies if necessary.
+    Always uses python version 3.12, since this is the verified version where everything is compatible. If the current Python
+    version is different, version 3.12 will be installed for this purpose.
+    :return:
+    """
+
     venv_python = _venv_python_path()
     venv_dir = venv_python.parent.parent
 
-    if not venv_python.exists():
+    if not _check_python_version():
+        _install_python_version_312_and_create_venv()
+
+    elif not venv_python.exists():
         _run_bootstrap_command(
             [sys.executable, "-m", "venv", str(venv_dir)],
             description=f"Creating virtual environment at {venv_dir}",
@@ -218,8 +292,14 @@ def _find_candidate_scripts(root: Path):
 
 def _write_shim(target_module: str, shim_path: Path, python_executable: str = 'python3'):
     shim_text = f"""#!/usr/bin/env bash
-# Auto-generated shim - runs the module as a package so package-relative imports work
-exec "{python_executable}" -m "{target_module}" "$@"
+set -e
+
+cd "{PROJECT_ROOT}" || {{
+  echo "Failed to cd to {PROJECT_ROOT}" >&2
+  exit 1
+}}
+
+exec "{python_executable}" -m {target_module} "$@"
 """
     shim_path.write_text(shim_text)
 
