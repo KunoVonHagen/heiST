@@ -7,7 +7,6 @@ existing setup scripts after saving the configuration.
 """
 
 from __future__ import annotations
-
 import argparse
 import ipaddress
 import os
@@ -20,6 +19,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
+import re
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
@@ -161,7 +161,94 @@ def bootstrap_requirements() -> None:
         raise SystemExit(f"Failed to install installer requirements (exit code {exc.returncode}).") from exc
 
 
+BIN_DIR = PROJECT_ROOT / 'bin'
+MAIN_RE = re.compile(r"if\s+__name__\s*==\s*['\"]__main__['\"]")
+
+
+def _find_module_name_for_path(path: Path, root: Path):
+    # Build a dotted module name for a .py file inside the project rooted at `root`.
+    # Stop walking up when we reach the repository root so the top-level repo folder
+    # name isn't inserted into the module path. This avoids invalid module names
+    # like 'heiST.ai_training.sanitizer'.
+    path = path.resolve()
+    if path.suffix != '.py':
+        return None
+    module_name = path.stem
+    cur = path.parent
+    pkg_parts: list[str] = []
+
+    # Walk upward while the directory is a Python package (has __init__.py) and
+    # we haven't reached the explicit repository root.
+    while cur != root and (cur / '__init__.py').exists():
+        pkg_parts.append(cur.name)
+        parent = cur.parent
+        if parent == cur:
+            break
+        cur = parent
+
+    # If the immediate parent is the root and it still has __init__.py, do not
+    # include the root directory name in the package path; stop there.
+    if (cur == root) and (cur / '__init__.py').exists():
+        # pkg_parts currently contains package segments from leaf up to, but not including, root
+        pass
+
+    if not pkg_parts:
+        # No package structure above the module (or we stopped at repo root): return module name
+        return module_name
+
+    pkg_parts.reverse()
+    return '.'.join(pkg_parts + [module_name])
+
+
+def _find_candidate_scripts(root: Path):
+    for p in root.rglob('*.py'):
+        # skip hidden, venvs, egg-info, dist, .git
+        if any(part in ('venv', '.venv', 'env', '.git', '__pycache__') or part.endswith('.egg-info') for part in
+               p.parts):
+            continue
+        if p.name == '__init__.py':
+            continue
+        try:
+            text = p.read_text()
+        except Exception:
+            continue
+        if MAIN_RE.search(text):
+            yield p
+
+
+def _write_shim(target_module: str, shim_path: Path, python_executable: str = 'python3'):
+    shim_text = f"""#!/usr/bin/env bash
+# Auto-generated shim - runs the module as a package so package-relative imports work
+exec "{python_executable}" -m "{target_module}" "$@"
+"""
+    shim_path.write_text(shim_text)
+
+
+def generate_shims():
+    scripts = list(_find_candidate_scripts(PROJECT_ROOT))
+    if not scripts:
+        print('No candidate scripts with __main__ found.')
+        return
+    BIN_DIR.mkdir(exist_ok=True)
+    created = []
+    for p in scripts:
+        mod = _find_module_name_for_path(p, PROJECT_ROOT)
+        if not mod:
+            continue
+        shim_name = p.stem
+        shim_path = BIN_DIR / shim_name
+        _write_shim(mod, shim_path, python_executable=sys.executable)
+        created.append((p, mod, shim_path))
+
+    if created:
+        # make shims executable
+        import stat
+        for _src, _mod, shim in created:
+            shim.chmod(shim.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+
 bootstrap_requirements()
+generate_shims()
 
 from dotenv import dotenv_values, load_dotenv
 from rich import box

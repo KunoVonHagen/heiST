@@ -211,4 +211,5 @@ def delete_user_config():
     return {"message": "User config deleted", "success": True}, 200
     
 
-app.run(host=BACKEND_HOST, port=int(BACKEND_PORT), ssl_context=(BACKEND_CERTIFICATE_FILE, BACKEND_CERTIFICATE_KEY_FILE))
+if __name__ == '__main__':
+    app.run(host=BACKEND_HOST, port=int(BACKEND_PORT), ssl_context=(BACKEND_CERTIFICATE_FILE, BACKEND_CERTIFICATE_KEY_FILE))
