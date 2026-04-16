@@ -1716,7 +1716,7 @@ def setup_vector():
         "apt-get update",
         "apt-get install -y vector",
         f"cp -r {VECTOR_SETUP_DIR}/. {VECTOR_DIR}/",
-        f"python3 {VECTOR_DIR}/configure_vector.py"
+        f"{sys.executable} -m monitoring.vector.configure_vector"
     ]
 
     for cmd in vector_commands:

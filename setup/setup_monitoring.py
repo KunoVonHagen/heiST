@@ -444,7 +444,8 @@ def get_script_command(script_path: str) -> List[str]:
 
     if MONITORING_FILES_DIR in script_path:
         filename = Path(script_path).name.replace(".py", "")
-        command = [sys.executable, "-m", f"monitoring.{filename}"]
+        module_structure = Path(script_path).parent.relative_to(MONITORING_FILES_DIR).parts
+        command = [sys.executable, "-m", ".".join(module_structure + (filename,))]
     else:
         raise Exception(f"Script path {script_path} is not a valid script path")
 

@@ -1580,7 +1580,7 @@ After=network.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/python3 {BACKEND_FILES_DIR}/cleanup.py
+ExecStart={PROJECT_ROOT}/bin/cleanup
 RemainAfterExit=yes
 
 [Install]
