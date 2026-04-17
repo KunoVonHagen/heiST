@@ -588,7 +588,7 @@ def download_ubuntu_base_server_ova():
     if not os.path.exists(base_server_file):
         print("\tDownloading Ubuntu Base Server OVA file")
         try:
-            proc = subprocess.Popen(["wget", UBUNTU_BASE_SERVER_URL, "-O", base_server_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            proc = subprocess.Popen(["wget", "-O", base_server_file, UBUNTU_BASE_SERVER_URL], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = proc.communicate()
             if proc.returncode == 0:
                 print("\tSuccessfully downloaded Ubuntu Base Server OVA file")
