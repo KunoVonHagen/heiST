@@ -398,7 +398,7 @@ def generate_and_distribute_env_files(backend_api_token, web_server_api_token):
         backend_env_file.write(f"DB_PASSWORD='{DATABASE_PASSWORD}'\n")
         backend_env_file.write(f"DB_PORT='{DATABASE_PORT}'\n")
 
-        backend_env_file.write(f"PROXMOX_URL='https://{PROXMOX_HOST}:{PROXMOX_PORT}'\n")
+        backend_env_file.write(f"PROXMOX_URL='https://{PROXMOX_HOSTNAME}:{PROXMOX_PORT}'\n")
         backend_env_file.write(f"PROXMOX_API_TOKEN='{backend_api_token_string}'\n")
         backend_env_file.write(f"PROXMOX_HOSTNAME='{PROXMOX_HOSTNAME}'\n")
 
@@ -421,7 +421,7 @@ def generate_and_distribute_env_files(backend_api_token, web_server_api_token):
         testing_env_file.write(f"PROXMOX_HOST='{PROXMOX_HOST}'\n")
         testing_env_file.write(f"PROXMOX_PORT='{PROXMOX_PORT}'\n")
         testing_env_file.write(f"PROXMOX_HOSTNAME='{PROXMOX_HOSTNAME}'\n")
-        testing_env_file.write(f"PROXMOX_URL='https://{PROXMOX_HOST}:{PROXMOX_PORT}'\n")
+        testing_env_file.write(f"PROXMOX_URL='https://{PROXMOX_HOSTNAME}:{PROXMOX_PORT}'\n")
         testing_env_file.write(f"PROXMOX_API_TOKEN='{backend_api_token_string}'\n")
 
         testing_env_file.write(f"DB_HOST='{DATABASE_HOST}'\n")
