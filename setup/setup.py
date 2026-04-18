@@ -18,6 +18,8 @@ from backend.get_user_config import get_user_config
 
 load_dotenv()
 
+APT_LOCK_TIMEOUT = os.getenv("APT_LOCK_TIMEOUT", "300")
+
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -199,12 +201,12 @@ def install_dependencies():
     # Install appropriate ntpdate package
     if subprocess.run(["dpkg", "--compare-versions", debian_version, "ge", "13.0"]).returncode == 0:
         print("\tInstalling ntpsec-ntpdate (Debian >= 13)")
-        subprocess.run(["apt", "update"], check=True, capture_output=True)
-        subprocess.run(["apt", "install", "-y", "ntpsec-ntpdate"], check=True, capture_output=True)
+        subprocess.run(["apt-get", "-o", f"DPkg::Lock::Timeout={APT_LOCK_TIMEOUT}", "update"], check=True, capture_output=True)
+        subprocess.run(["apt-get", "-o", f"DPkg::Lock::Timeout={APT_LOCK_TIMEOUT}", "install", "-y", "ntpsec-ntpdate"], check=True, capture_output=True)
     else:
         print("\tInstalling legacy ntpdate (Debian < 13)")
-        subprocess.run(["apt", "update"], check=True, capture_output=True)
-        subprocess.run(["apt", "install", "-y", "ntpdate"], check=True, capture_output=True)
+        subprocess.run(["apt-get", "-o", f"DPkg::Lock::Timeout={APT_LOCK_TIMEOUT}", "update"], check=True, capture_output=True)
+        subprocess.run(["apt-get", "-o", f"DPkg::Lock::Timeout={APT_LOCK_TIMEOUT}", "install", "-y", "ntpdate"], check=True, capture_output=True)
 
     print("\tSynchronizing time with NTP server")
     subprocess.run(["ntpdate", "time.google.com"], check=True, capture_output=True)
@@ -213,7 +215,7 @@ def install_dependencies():
 
     # Update and install required packages
     print("\tUpdating package list")
-    subprocess.run(["apt", "update"], check=True, capture_output=True)
+    subprocess.run(["apt-get", "-o", f"DPkg::Lock::Timeout={APT_LOCK_TIMEOUT}", "update"], check=True, capture_output=True)
 
     packages = [
         ("OpenVPN", ["openvpn"]),
@@ -228,7 +230,7 @@ def install_dependencies():
 
     for desc, pkgs in packages:
         print(f"\tInstalling {desc}")
-        subprocess.run(["apt", "install", "-y"] + pkgs, check=True, capture_output=True)
+        subprocess.run(["apt-get", "-o", f"DPkg::Lock::Timeout={APT_LOCK_TIMEOUT}", "install", "-y"] + pkgs, check=True, capture_output=True)
 
     # Stop and disable PostgreSQL
     subprocess.run(["systemctl", "stop", "postgresql"], check=True, capture_output=True)
@@ -839,14 +841,14 @@ def setup_database_server():
     # Synchronize the time with NTP server
     print("\tSynchronizing server time with NTP server")
     execute_command("sudo timedatectl set-timezone Europe/Berlin")
-    execute_command("sudo apt update")
-    execute_command("sudo apt install -y ntpdate")
+    execute_command(f"sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout={APT_LOCK_TIMEOUT} update")
+    execute_command(f"sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout={APT_LOCK_TIMEOUT} install -y ntpdate")
     execute_command("sudo ntpdate time.google.com")
 
     # Install PostgreSQL on the database server
     print("\tInstalling PostgreSQL on the database server")
-    execute_command("sudo apt update")
-    execute_command("sudo apt install postgresql postgresql-contrib -y")
+    execute_command(f"sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout={APT_LOCK_TIMEOUT} update")
+    execute_command(f"sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout={APT_LOCK_TIMEOUT} install -y postgresql postgresql-contrib")
     execute_command("sudo systemctl enable postgresql")
     execute_command("sudo systemctl start postgresql")
 
@@ -971,14 +973,14 @@ def setup_webserver():
     # Synchronize the time with NTP server
     print("\tSynchronizing server time with NTP server")
     execute_command("sudo timedatectl set-timezone Europe/Berlin")
-    execute_command("sudo apt update")
-    execute_command("sudo apt install -y ntpdate")
+    execute_command(f"sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout={APT_LOCK_TIMEOUT} update")
+    execute_command(f"sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout={APT_LOCK_TIMEOUT} install -y ntpdate")
     execute_command("sudo ntpdate time.google.com")
 
     # Install Apache, PHP, Redis and composer on the webserver
     print("\tInstalling Apache, PHP, and composer on the webserver")
-    execute_command("sudo apt update")
-    execute_command("sudo apt install apache2 php libapache2-mod-php php-curl php-pgsql php-xml php-mbstring php-xdebug php-sockets php-imagick composer redis-server php-redis -y")
+    execute_command(f"sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout={APT_LOCK_TIMEOUT} update")
+    execute_command(f"sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout={APT_LOCK_TIMEOUT} install -y apache2 php libapache2-mod-php php-curl php-pgsql php-xml php-mbstring php-xdebug php-sockets php-imagick composer redis-server php-redis")
 
     # Changing Redis Configuration
     print("\tChanging Redis Configuration")
