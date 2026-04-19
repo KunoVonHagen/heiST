@@ -33,7 +33,7 @@ from backend.proxmox_api_calls import (
 from backend.subnet_calculations import nth_network_subnet, nth_machine_ip
 from backend.teardown_challenge import remove_database_entries, stop_dnsmasq_instances,remove_challenge_from_wazuh
 from backend.launch_timing_logger import launch_timing_logger
-from backend.get_db_connection import run_with_db_connection
+from backend.get_db_connection import db_connection_context
 
 load_dotenv(find_dotenv())
 
@@ -50,81 +50,84 @@ def warmup_challenge(pre_assigned_user_id, challenge_template_id, vpn_monitoring
     """
     Launch a challenge by creating a user and network device.
     """
-    print(f"[Info] Starting warmup challenge for user {pre_assigned_user_id} and template {challenge_template_id}", flush=True)
 
-    start_time = time.time()
+    with db_connection_context() as db_conn:
 
-    try:
-        start_time_db_fetch = time.time()
-        print(f"[Info] Fetching database data for challenge template {challenge_template_id}", flush=True)
-        challenge_template = ChallengeTemplate(challenge_template_id)
-        fetch_machines(challenge_template, db_conn)
-        fetch_network_and_connection_templates(challenge_template, db_conn)
-        fetch_domain_templates(challenge_template, db_conn)
+        print(f"[Info] Starting warmup challenge for user {pre_assigned_user_id} and template {challenge_template_id}", flush=True)
 
-        launch_timing_logger(start_time_db_fetch, "[WARMUP DB FETCH COMPLETE]", challenge_template_id, pre_assigned_user_id)
-    except Exception as e:
-        print(f"[Error] Failed to fetch database data: {e}", flush=True)
-        raise ValueError(f"Error fetching from database: {e}")
+        start_time = time.time()
 
-    try:
-        print(f"[Info] Creating challenge for template {challenge_template_id}", flush=True)
-        challenge = create_challenge(challenge_template, db_conn, pre_assigned_user_id)
-        print(f"[Info] Successfully created challenge {challenge.id}", flush=True)
-    except Exception as e:
-        print(f"[Error] Failed to create challenge: {e}", flush=True)
-        raise ValueError(f"Error creating challenge: {e}")
+        try:
+            start_time_db_fetch = time.time()
+            print(f"[Info] Fetching database data for challenge template {challenge_template_id}", flush=True)
+            challenge_template = ChallengeTemplate(challenge_template_id)
+            fetch_machines(challenge_template, db_conn)
+            fetch_network_and_connection_templates(challenge_template, db_conn)
+            fetch_domain_templates(challenge_template, db_conn)
 
-    try:
-        start_time_machine_clone = time.time()
-        print(f"[Info] Starting machine cloning for challenge {challenge.id}", flush=True)
-        clone_machines(challenge_template, challenge, db_conn)
-        launch_timing_logger(start_time_machine_clone, "[WARMUP MACHINE CLONE COMPLETE]", challenge_template_id, pre_assigned_user_id)
+            launch_timing_logger(start_time_db_fetch, "[WARMUP DB FETCH COMPLETE]", challenge_template_id, pre_assigned_user_id)
+        except Exception as e:
+            print(f"[Error] Failed to fetch database data: {e}", flush=True)
+            raise ValueError(f"Error fetching from database: {e}")
 
-        # Network setup
-        print(f"[Info] Starting network setup for challenge {challenge.id}", flush=True)
-        start_time_network = time.time()
-        print(f"[Info] Attaching vrtmon monitoring network to VMs", flush=True)
-        attach_vrtmon_network(challenge)
-        print(f"[Info] Creating networks and connections", flush=True)
-        create_networks_and_connections(challenge_template, challenge, db_conn)
-        print(f"[Info] Creating domains for challenge {challenge.id}", flush=True)
-        create_domains(challenge_template, challenge, db_conn)
-        print(f"[Info] Creating network devices", flush=True)
-        create_network_devices(challenge)
-        print(f"[Info] Waiting for networks to be up", flush=True)
-        wait_for_networks_to_be_up(challenge)
+        try:
+            print(f"[Info] Creating challenge for template {challenge_template_id}", flush=True)
+            challenge = create_challenge(challenge_template, db_conn, pre_assigned_user_id)
+            print(f"[Info] Successfully created challenge {challenge.id}", flush=True)
+        except Exception as e:
+            print(f"[Error] Failed to create challenge: {e}", flush=True)
+            raise ValueError(f"Error creating challenge: {e}")
 
-        print(f"[Info] Attaching networks to VMs", flush=True)
-        attach_networks_to_vms(challenge)
-        print(f"[Info] Configuring dnsmasq instances", flush=True)
-        configure_dnsmasq_instances(challenge)
-        launch_timing_logger(start_time_network, "[WARMUP NETWORK SETUP COMPLETE]", challenge_template_id, pre_assigned_user_id)
+        try:
+            start_time_machine_clone = time.time()
+            print(f"[Info] Starting machine cloning for challenge {challenge.id}", flush=True)
+            clone_machines(challenge_template, challenge, db_conn)
+            launch_timing_logger(start_time_machine_clone, "[WARMUP MACHINE CLONE COMPLETE]", challenge_template_id, pre_assigned_user_id)
 
-        start_time_vm_boot = time.time()
-        print(f"[Info] Launching VMs for challenge {challenge.id}", flush=True)
-        launch_machines(challenge)
-        launch_timing_logger(start_time_vm_boot, "[WARMUP VM BOOT COMPLETE]", challenge_template_id, pre_assigned_user_id)
+            # Network setup
+            print(f"[Info] Starting network setup for challenge {challenge.id}", flush=True)
+            start_time_network = time.time()
+            print(f"[Info] Attaching vrtmon monitoring network to VMs", flush=True)
+            attach_vrtmon_network(challenge)
+            print(f"[Info] Creating networks and connections", flush=True)
+            create_networks_and_connections(challenge_template, challenge, db_conn)
+            print(f"[Info] Creating domains for challenge {challenge.id}", flush=True)
+            create_domains(challenge_template, challenge, db_conn)
+            print(f"[Info] Creating network devices", flush=True)
+            create_network_devices(challenge)
+            print(f"[Info] Waiting for networks to be up", flush=True)
+            wait_for_networks_to_be_up(challenge)
 
-        start_time_wazuh = time.time()
-        print(f"[Info] Configuring Wazuh for challenge {challenge.id}", flush=True)
-        configure_wazuh_for_challenge(challenge)
-        launch_timing_logger(start_time_wazuh, "[WARMUP WAZUH CONFIG COMPLETE]", challenge_template_id, pre_assigned_user_id)
+            print(f"[Info] Attaching networks to VMs", flush=True)
+            attach_networks_to_vms(challenge)
+            print(f"[Info] Configuring dnsmasq instances", flush=True)
+            configure_dnsmasq_instances(challenge)
+            launch_timing_logger(start_time_network, "[WARMUP NETWORK SETUP COMPLETE]", challenge_template_id, pre_assigned_user_id)
 
-        print(f"[Info] Setting challenge {challenge.id} to READY state", flush=True)
-        set_challenge_ready(challenge, db_conn)
-        print(f"[Info] Challenge {challenge.id} is now READY", flush=True)
+            start_time_vm_boot = time.time()
+            print(f"[Info] Launching VMs for challenge {challenge.id}", flush=True)
+            launch_machines(challenge)
+            launch_timing_logger(start_time_vm_boot, "[WARMUP VM BOOT COMPLETE]", challenge_template_id, pre_assigned_user_id)
 
-    except Exception as e:
-        print(f"[Error] Failed during challenge launch: {e}", flush=True)
-        undo_launch_challenge(challenge, db_conn)
-        raise ValueError(f"Error launching challenge: {e}")
+            start_time_wazuh = time.time()
+            print(f"[Info] Configuring Wazuh for challenge {challenge.id}", flush=True)
+            configure_wazuh_for_challenge(challenge)
+            launch_timing_logger(start_time_wazuh, "[WARMUP WAZUH CONFIG COMPLETE]", challenge_template_id, pre_assigned_user_id)
 
-    elapsed_time = time.time() - start_time
-    print(f"[Info] Warmup challenge {challenge.id} completed successfully in {elapsed_time:.2f}s", flush=True)
-    launch_timing_logger(start_time, "[WARMUP COMPLETE]", challenge_template_id, pre_assigned_user_id)
+            print(f"[Info] Setting challenge {challenge.id} to READY state", flush=True)
+            set_challenge_ready(challenge, db_conn)
+            print(f"[Info] Challenge {challenge.id} is now READY", flush=True)
 
-    return challenge
+        except Exception as e:
+            print(f"[Error] Failed during challenge launch: {e}", flush=True)
+            undo_launch_challenge(challenge, db_conn)
+            raise ValueError(f"Error launching challenge: {e}")
+
+        elapsed_time = time.time() - start_time
+        print(f"[Info] Warmup challenge {challenge.id} completed successfully in {elapsed_time:.2f}s", flush=True)
+        launch_timing_logger(start_time, "[WARMUP COMPLETE]", challenge_template_id, pre_assigned_user_id)
+
+        return challenge
 
 
 def fetch_machines(challenge_template, db_conn):

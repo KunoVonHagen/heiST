@@ -2,7 +2,7 @@ import subprocess
 import os
 from dotenv import load_dotenv, find_dotenv
 
-from backend.get_db_connection import run_with_db_connection
+from backend.get_db_connection import db_connection_context
 
 load_dotenv(find_dotenv())
 
@@ -13,18 +13,16 @@ CHALLENGES_ROOT_SUBNET_CIDR = f"{CHALLENGES_ROOT_SUBNET}/{CHALLENGES_ROOT_SUBNET
 
 
 @run_with_db_connection
-def stop_challenge(user_id, db_conn=None):
+def stop_challenge(user_id):
     """
     Stop a challenge for a user.
     """
 
-    user_static_ip, challenge_id = get_user_static_ip_and_challenge_id(user_id, db_conn)
-    remove_user_iptables_rules(user_static_ip)
-    mark_challenge_expired(challenge_id, db_conn)
-    unassign_challenge_from_user(user_id, db_conn)
-
-
-
+    with db_connection_context() as db_conn:
+        user_static_ip, challenge_id = get_user_static_ip_and_challenge_id(user_id, db_conn)
+        remove_user_iptables_rules(user_static_ip)
+        mark_challenge_expired(challenge_id, db_conn)
+        unassign_challenge_from_user(user_id, db_conn)
 
 
 def get_user_static_ip_and_challenge_id(user_id, db_conn):

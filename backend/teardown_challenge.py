@@ -23,7 +23,7 @@ from backend.proxmox_api_calls import (
     reload_network_api_call,
     network_device_exists_api_call
 )
-from backend.get_db_connection import run_with_db_connection
+from backend.get_db_connection import db_connection_context
 
 load_dotenv(find_dotenv())
 
@@ -44,16 +44,16 @@ def teardown_challenge(challenge_id, db_conn=None):
     """
     Stop a challenge for a user.
     """
-
-    challenge = fetch_challenge(challenge_id, db_conn)
-    fetch_machines(challenge, db_conn)
-    stop_machines(challenge)
-    delete_machines(challenge)
-    fetch_networks(challenge, db_conn)
-    delete_network_devices(challenge)
-    stop_dnsmasq_instances(challenge)
-    remove_challenge_from_wazuh(challenge)
-    remove_database_entries(challenge, db_conn)
+    with db_connection_context() as db_conn:
+        challenge = fetch_challenge(challenge_id, db_conn)
+        fetch_machines(challenge, db_conn)
+        stop_machines(challenge)
+        delete_machines(challenge)
+        fetch_networks(challenge, db_conn)
+        delete_network_devices(challenge)
+        stop_dnsmasq_instances(challenge)
+        remove_challenge_from_wazuh(challenge)
+        remove_database_entries(challenge, db_conn)
 
 
 
