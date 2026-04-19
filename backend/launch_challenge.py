@@ -151,6 +151,7 @@ def try_attach_to_running_warmup(challenge_template_id, user_id, db_conn):
     """
     Try to attach to a running warmup challenge for the given user ID and challenge template ID.
     """
+    print(f"[Info] Attempting to attach user {user_id} to running warmup challenge for template {challenge_template_id}", flush=True)
 
     with db_conn.cursor() as cursor:
         cursor.execute("""
@@ -169,15 +170,20 @@ def try_attach_to_running_warmup(challenge_template_id, user_id, db_conn):
         row = cursor.fetchone()
 
         if row is None:
+            print(f"[Info] No available running warmup challenge found for template {challenge_template_id}", flush=True)
             return None
 
-    return row[0]
+        warmup_id = row[0]
+        print(f"[Info] Successfully attached user {user_id} to warmup challenge {warmup_id}", flush=True)
+
+    return warmup_id
 
 
 def check_running_warmup(challenge_template_id, user_id, db_conn):
     """
     Check if there is a running warmup challenge for the given user ID and challenge template ID.
     """
+    print(f"[Info] Checking for running warmup challenge for user {user_id} and template {challenge_template_id}", flush=True)
 
     with db_conn.cursor() as cursor:
         cursor.execute("""
@@ -191,15 +197,20 @@ def check_running_warmup(challenge_template_id, user_id, db_conn):
         row = cursor.fetchone()
 
         if row is None:
+            print(f"[Info] No running warmup challenge found for user {user_id}", flush=True)
             return None
 
-    return row[0]
+        warmup_id = row[0]
+        print(f"[Info] Found running warmup challenge {warmup_id} for user {user_id}", flush=True)
+
+    return warmup_id
 
 
 def acquire_exclusive_launch_lock(user_id):
     """
     Acquire an exclusive lock for launching a challenge for the given user ID.
     """
+    print(f"[Info] Attempting to acquire launch lock for user {user_id}", flush=True)
 
     lock_file_path = os.path.join(challenge_launch_lock_dir, f"user_{user_id}.lock")
     os.makedirs(challenge_launch_lock_dir, exist_ok=True)
@@ -207,8 +218,10 @@ def acquire_exclusive_launch_lock(user_id):
 
     try:
         fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        print(f"[Info] Successfully acquired launch lock for user {user_id} at {lock_file_path}", flush=True)
     except Exception as e:
         lock_file.close()
+        print(f"[Error] Failed to acquire launch lock for user {user_id}: {e}", flush=True)
         raise RuntimeError(f"Failed to acquire launch lock for user {user_id}: {e}")
 
     return lock_file
@@ -218,9 +231,11 @@ def release_exclusive_launch_lock(user_id, launch_lock):
     """
     Release the exclusive lock for launching a challenge for the given user ID.
     """
+    print(f"[Info] Releasing launch lock for user {user_id}", flush=True)
 
     try:
         fcntl.flock(launch_lock, fcntl.LOCK_UN)
+        print(f"[Info] Successfully released launch lock for user {user_id}", flush=True)
     finally:
         launch_lock.close()
 
@@ -229,6 +244,7 @@ def fetch_machines(challenge, db_conn):
     """
     Fetch machines for the given challenge.
     """
+    print(f"[Info] Fetching machines for challenge {challenge.id}", flush=True)
 
     with db_conn.cursor() as cursor:
         cursor.execute("""
@@ -237,20 +253,27 @@ def fetch_machines(challenge, db_conn):
                        WHERE challenge_id = %s
                        """, (challenge.id,))
 
-        for row in cursor.fetchall():
+        machines_fetched = cursor.fetchall()
+        print(f"[Info] Retrieved {len(machines_fetched)} machines from database for challenge {challenge.id}", flush=True)
+
+        for row in machines_fetched:
             machine_id = row[0]
             machine_template_id = row[1]
 
+            print(f"[Debug] Adding machine {machine_id} with template {machine_template_id} to challenge", flush=True)
             machine_template = MachineTemplate(machine_template_id, challenge.template)
             machine = Machine(machine_id, machine_template, challenge)
             challenge.add_machine(machine)
             machine_template.set_child(machine)
+
+        print(f"[Info] Successfully processed {len(machines_fetched)} machines for challenge {challenge.id}", flush=True)
 
 
 def fetch_networks_and_connections(challenge, db_conn):
     """
     Fetch networks and connections for the given challenge.
     """
+    print(f"[Info] Fetching networks and connections for challenge {challenge.id}", flush=True)
 
     with db_conn.cursor() as cursor:
         cursor.execute("""
@@ -261,13 +284,17 @@ def fetch_networks_and_connections(challenge, db_conn):
                          AND n.network_template_id = nt.id
                        """, (challenge.id,))
 
-        for row in cursor.fetchall():
+        networks_fetched = cursor.fetchall()
+        print(f"[Info] Retrieved {len(networks_fetched)} networks from database for challenge {challenge.id}", flush=True)
+
+        for row in networks_fetched:
             network_id = row[0]
             network_template_id = row[1]
             subnet = row[2]
             host_device = row[3]
             accessible = row[4]
 
+            print(f"[Debug] Adding network {network_id} with subnet {subnet} on device {host_device} (accessible={accessible})", flush=True)
             network_template = NetworkTemplate(network_template_id, accessible)
             network = Network(network_id, network_template, subnet, host_device, accessible)
             challenge.add_network(network)
@@ -280,12 +307,16 @@ def fetch_networks_and_connections(challenge, db_conn):
                                             WHERE challenge_id = %s)
                        """, (challenge.id,))
 
-        for row in cursor.fetchall():
+        connections_fetched = cursor.fetchall()
+        print(f"[Info] Retrieved {len(connections_fetched)} network connections from database for challenge {challenge.id}", flush=True)
+
+        for row in connections_fetched:
             machine_id = row[0]
             network_id = row[1]
             client_mac = row[2]
             client_ip = row[3]
 
+            print(f"[Debug] Adding connection: machine {machine_id} to network {network_id} with IP {client_ip} and MAC {client_mac}", flush=True)
             machine = challenge.machines[machine_id]
             network = challenge.networks[network_id]
 
@@ -294,14 +325,18 @@ def fetch_networks_and_connections(challenge, db_conn):
             network.add_connection(connection)
             machine.add_connection(connection)
 
+        print(f"[Info] Successfully processed {len(connections_fetched)} connections for challenge {challenge.id}", flush=True)
+
 
 def get_ready_challenge(challenge_template, db_conn, user_id=None):
     """
     Get a ready challenge from the database.
     """
+    print(f"[Info] Getting ready challenge for template {challenge_template.id} (user_id={user_id})", flush=True)
 
     with db_conn.cursor() as cursor:
         if user_id is None:
+            print(f"[Debug] Querying for any available ready challenge", flush=True)
             cursor.execute("""
                            WITH ready_challenges AS (SELECT id, subnet
                                                      FROM challenges
@@ -317,14 +352,17 @@ def get_ready_challenge(challenge_template, db_conn, user_id=None):
             row = cursor.fetchone()
 
             if row is None:
+                print(f"[Info] No ready challenge found for template {challenge_template.id}", flush=True)
                 return None
 
             challenge_id = row[0]
             subnet = row[1]
+            print(f"[Info] Found ready challenge {challenge_id} with subnet {subnet}", flush=True)
 
             challenge = Challenge(challenge_id=challenge_id, template=challenge_template, subnet=subnet)
             return challenge
         else:
+            print(f"[Debug] Querying for ready challenge pre-assigned to user {user_id}", flush=True)
             cursor.execute("""
                            WITH ready_challenges AS (SELECT id, subnet
                                                      FROM challenges
@@ -341,190 +379,32 @@ def get_ready_challenge(challenge_template, db_conn, user_id=None):
             row = cursor.fetchone()
 
             if row is None:
+                print(f"[Info] No ready challenge found for user {user_id} and template {challenge_template.id}", flush=True)
                 return None
 
             challenge_id = row[0]
             subnet = row[1]
+            print(f"[Info] Found ready challenge {challenge_id} with subnet {subnet} for user {user_id}", flush=True)
 
             challenge = Challenge(challenge_id=challenge_id, template=challenge_template, subnet=subnet)
             return challenge
-
-
-def vmid_to_ipv6(vmid, offset=0x1000):
-    """
-    Create ipv6 address from a VMID.
-    """
-    host_id = offset + vmid
-    high = (host_id >> 16) & 0xFFFF
-    low = host_id & 0xFFFF
-    return f"fd12:3456:789a:1::{high:x}:{low:x}"
-
-
-def wait_for_qemu_guest_agent(machine, timeout=120):
-    """
-    Wait until QEMU Guest Agent is ready
-    """
-    start_time = time.time()
-
-    while time.time() - start_time < timeout:
-        try:
-            cmd = f"qm guest exec {machine.id} -- echo 'ready'"
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
-
-            if result.returncode == 0:
-                launch_timing_logger(start_time, f"[GUEST AGENT RESPONDED]", machine.challenge.template.id, None,
-                                     VM_ID=machine.id)
-                return True
-        except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
-            pass
-
-        time.sleep(5)
-
-    raise TimeoutError(f"QEMU Guest Agent timeout for VM {machine.id}")
-
-
-def generate_user_specific_flag(flag_secret, user_email):
-    """
-    Generate a user-specific flag using the secret and user email.
-    Format: ITSEC{sha1.hmac_hash(key=secret,message=email)}
-    """
-    hash_value = hmac.new(
-        flag_secret.encode('utf-8'),
-        user_email.encode('utf-8'),
-        hashlib.sha1
-    ).hexdigest()
-    return f"ITSEC{{{hash_value}}}"
-
-
-def process_all_user_specific_flags(challenge, user_email):
-    """
-    Process all user-specific flags for the challenge.
-    Generates personalized flags and writes them to the appropriate VMs.
-    """
-    try:
-        if not hasattr(challenge.template, 'flags'):
-            print(f"[Info] No flags defined for challenge template {challenge.template.id}", flush=True)
-            return
-
-        flags_by_machine = {}
-        for flag in challenge.template.flags:
-            if flag['user_specific'] and flag['machine_template_id']:
-                machine_template_id = flag['machine_template_id']
-
-                print(f"[Info] Processing flag {flag} for machine template {machine_template_id}", flush=True)
-
-                machine = None
-                for m in challenge.machines.values():
-                    if m.template.id == machine_template_id:
-                        machine = m
-                        break
-
-                    if machine is None:
-                        print(f"[Warning] Machine template {machine_template_id} not found in challenge", flush=True)
-                        continue
-
-                if machine.id not in flags_by_machine:
-                    flags_by_machine[machine.id] = []
-
-                print(f"[Info] Processing flag {flag} for machine {machine.id}", flush=True)
-
-                user_flag = generate_user_specific_flag(flag['flag'], user_email)
-                print(f"[Info] Generated user-specific flag for {user_email}: {user_flag}", flush=True)
-                flag_path = f"/root/flag_{flag['order_index']}.txt"
-                flags_by_machine[machine.id].append({
-                    'flag': user_flag,
-                    'path': flag_path,
-                })
-
-
-    except Exception as e:
-        print(f"[Error] Failed to process flags for challenge {challenge.id}, user {user_email}: {e}", flush=True)
-        raise e
-
-    print(f"[Info] Finished generating user-specific flags for challenge {challenge.id} and user {user_email}",
-          flush=True)
-
-    try:
-        flag_write_threads = []
-        for machine_id, flags in flags_by_machine.items():
-            flag_write_threads.append(
-                threading.Thread(target=write_user_specific_flags_to_vm, args=(machine_id, flags)))
-
-        print("[Info] Starting threads", flush=True)
-
-        for thread in flag_write_threads:
-            thread.start()
-
-        for thread in flag_write_threads:
-            thread.join()
-
-    except Exception as e:
-        print(f"[Error] Failed to write user-specific flags to VMs: {e}", flush=True)
-        raise e
-
-
-def write_user_specific_flags_to_vm(machine_id, flags):
-    """
-    Write user-specific flags to a VM via QEMU Guest Agent.
-    """
-    start_flag_write_time = time.time()
-
-    flag_write_command = ""
-    for flag in flags:
-        escaped_flag = shlex.quote(flag['flag'])
-        flag_path = flag['path']
-
-        flag_write_command += f"echo {escaped_flag} > {flag_path} && chmod 600 {flag_path} && "
-
-    print(f"[Info] Writing flags to VM {machine_id}: {flag_write_command}", flush=True)
-
-    if flag_write_command != "":
-        flag_write_command = flag_write_command.rstrip(" && ")
-        result = subprocess.run(["qm", "guest", "exec", str(machine_id), "--",
-                                 "bash", "-c", flag_write_command], capture_output=True, text=True)
-
-        if result.returncode != 0:
-            raise RuntimeError(f"Failed to write flags to VM {machine_id}: {result.stderr}")
-
-    launch_timing_logger(start_flag_write_time, f"[FLAG WRITE COMPLETE]", None, None, VM_ID=machine_id)
-
-    print(f"[Info] Successfully wrote flags to VM {machine_id}", flush=True)
-
-
-def generate_mac_address(machine_id, local_network_id, local_connection_id):
-    """
-    Generate a MAC address based on the machine ID, network ID, and connection ID.
-    local_network_id, local_connection_id : 1-15 -> 2 nibbles combined
-    machine_id : 100000000 -> 899999999 -> 8 nibbles -> hash to
-    """
-    machine_hex = hex(machine_id)[2:].zfill(8)[-8:]
-    machine_bytes = [machine_hex[i:i + 2] for i in range(0, len(machine_hex), 2)]
-    network_hex = hex(local_network_id)[2:]
-    connection_hex = hex(local_connection_id)[2:]
-
-    if len(machine_bytes) != 4:
-        raise ValueError(f"Challenge ID must be 8 hex digits, got {len(machine_bytes) * 2} hex digits")
-
-    if len(network_hex) > 1 or len(connection_hex) > 1:
-        raise ValueError(f"Network ID and Connection ID must be 1 hex digit, got {len(network_hex)} and "
-                         f"{len(connection_hex)} hex digits")
-
-    mac = (f"02:{machine_bytes[0]}:{machine_bytes[1]}:{machine_bytes[2]}:{machine_bytes[3]}"
-           f":{network_hex}{connection_hex}")
-    return mac
 
 
 def fetch_user_vpn_ip(user_id, db_conn):
     """
     Fetch the VPN IP address for the given user ID.
     """
+    print(f"[Info] Fetching VPN IP for user {user_id}", flush=True)
+
     with db_conn.cursor() as cursor:
         cursor.execute("SELECT vpn_static_ip FROM users WHERE id = %s", (user_id,))
         user_vpn_ip = cursor.fetchone()[0]
 
     if user_vpn_ip is None:
+        print(f"[Error] User VPN IP not found for user {user_id}", flush=True)
         raise ValueError("User VPN IP not found")
 
+    print(f"[Info] Successfully fetched VPN IP {user_vpn_ip} for user {user_id}", flush=True)
     return user_vpn_ip
 
 
@@ -532,13 +412,17 @@ def fetch_user_email(user_id, db_conn):
     """
     Fetch the email address for the given user ID.
     """
+    print(f"[Info] Fetching email for user {user_id}", flush=True)
+
     with db_conn.cursor() as cursor:
         cursor.execute("SELECT email FROM users WHERE id = %s", (user_id,))
         user_email = cursor.fetchone()[0]
 
     if user_email is None:
+        print(f"[Error] User email not found for user {user_id}", flush=True)
         raise ValueError("User email not found")
 
+    print(f"[Info] Successfully fetched email {user_email} for user {user_id}", flush=True)
     return user_email
 
 
@@ -546,6 +430,8 @@ def fetch_challenge_flags(challenge_template, db_conn):
     """
     Fetch challenge flags for the given challenge template.
     """
+    print(f"[Info] Fetching challenge flags for template {challenge_template.id}", flush=True)
+
     with db_conn.cursor() as cursor:
         cursor.execute("""
                        SELECT id, flag, description, points, order_index, user_specific, machine_template_id
@@ -555,7 +441,10 @@ def fetch_challenge_flags(challenge_template, db_conn):
                        """, (challenge_template.id,))
 
         challenge_template.flags = []
-        for row in cursor.fetchall():
+        flags_fetched = cursor.fetchall()
+        print(f"[Info] Retrieved {len(flags_fetched)} flags for template {challenge_template.id}", flush=True)
+
+        for row in flags_fetched:
             flag_data = {
                 'id': row[0],
                 'flag': row[1],
@@ -565,25 +454,34 @@ def fetch_challenge_flags(challenge_template, db_conn):
                 'user_specific': row[5],
                 'machine_template_id': row[6]
             }
+            print(f"[Debug] Added flag {flag_data['id']} (user_specific={flag_data['user_specific']}, machine_template_id={flag_data['machine_template_id']})", flush=True)
             challenge_template.flags.append(flag_data)
+
+        print(f"[Info] Successfully processed {len(flags_fetched)} flags for template {challenge_template.id}", flush=True)
 
 
 def add_iptables_rules(challenge, user_vpn_ip, vpn_monitoring_device, dmz_monitoring_device):
     """
     Update iptables rules for the given user VPN IP.
     """
+    print(f"[Info] Adding iptables rules for challenge {challenge.id} and user VPN IP {user_vpn_ip}", flush=True)
 
     # Remove general user block from an earlier challenge stop
+    print(f"[Info] Removing old iptables rules for user {user_vpn_ip}", flush=True)
     subprocess.run(["iptables", "-D", "FORWARD", "-s", user_vpn_ip, "-d", CHALLENGES_ROOT_SUBNET_CIDR, "-j", "DROP"],
                    check=False, capture_output=True)
     subprocess.run(["iptables", "-D", "FORWARD", "-s", CHALLENGES_ROOT_SUBNET_CIDR, "-d", user_vpn_ip, "-j", "DROP"],
                    check=False, capture_output=True)
+    print(f"[Info] Old iptables rules removed", flush=True)
 
     for network in challenge.networks.values():
+        print(f"[Info] Setting up iptables rules for network {network.id} on device {network.host_device}", flush=True)
+
         # Allow intra-network traffic
         subprocess.run(
             ["iptables", "-A", "FORWARD", "-i", network.host_device, "-o", network.host_device, "-j", "ACCEPT"],
             check=True)
+        print(f"[Debug] Allowed intra-network traffic on {network.host_device}", flush=True)
 
         # Allow DNS traffic to the router IP
         subprocess.run(
@@ -592,27 +490,31 @@ def add_iptables_rules(challenge, user_vpn_ip, vpn_monitoring_device, dmz_monito
         subprocess.run(
             ["iptables", "-A", "INPUT", "-i", network.host_device, "-d", network.router_ip, "-p", "tcp", "--dport",
              "53", "-j", "ACCEPT"], check=True)
+        print(f"[Debug] Allowed DNS traffic to router {network.router_ip}", flush=True)
 
         # Disallow traffic to the router IP
         subprocess.run(["iptables", "-A", "INPUT", "-d", network.router_ip, "-j", "DROP"], check=True)
+        print(f"[Debug] Blocked direct traffic to router {network.router_ip}", flush=True)
 
         # Set up qdisc
         subprocess.run(["tc", "qdisc", "add", "dev", network.host_device, "clsact"], check=False)
+        print(f"[Debug] Added qdisc to {network.host_device}", flush=True)
 
         # Mirror traffic on this network to monitoring_device
         subprocess.run([
             "tc", "filter", "add", "dev", network.host_device, "ingress", "protocol", "ip",
-            "matchall",  # ADD THIS
+            "matchall",
             "action", "mirred", "egress", "mirror", "dev", vpn_monitoring_device
         ], check=True)
-
         subprocess.run([
             "tc", "filter", "add", "dev", network.host_device, "egress", "protocol", "ip",
-            "matchall",  # ADD THIS
+            "matchall",
             "action", "mirred", "egress", "mirror", "dev", vpn_monitoring_device
         ], check=True)
+        print(f"[Debug] Mirrored traffic on {network.host_device} to {vpn_monitoring_device}", flush=True)
 
         if network.accessible:
+            print(f"[Debug] Network {network.id} is accessible, setting up user traffic rules", flush=True)
             for network_connection in network.connections.values():
                 # Allow traffic from the user VPN IP to the client IP
                 subprocess.run(
@@ -623,8 +525,10 @@ def add_iptables_rules(challenge, user_vpn_ip, vpn_monitoring_device, dmz_monito
                     ["iptables", "-A", "FORWARD", "-i", network.host_device, "-o", "tun0", "-d", user_vpn_ip, "-s",
                      network_connection.client_ip, "-m", "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j",
                      "ACCEPT"], check=True)
+                print(f"[Debug] Allowed bidirectional traffic from {user_vpn_ip} to {network_connection.client_ip}", flush=True)
 
         if network.is_dmz:
+            print(f"[Debug] Network {network.id} is DMZ, setting up DMZ rules", flush=True)
             # Allow traffic from the DMZ to the outside
             subprocess.run(
                 ["iptables", "-t", "nat", "-A", "POSTROUTING", "-o", "vmbr0", "-s", network.subnet, "!", "-d",
@@ -637,6 +541,7 @@ def add_iptables_rules(challenge, user_vpn_ip, vpn_monitoring_device, dmz_monito
                 ["iptables", "-A", "FORWARD", "-i", "vmbr0", "-o", network.host_device, "-d", network.subnet, "!",
                  "-s", CHALLENGES_ROOT_SUBNET_CIDR, "-m", "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j",
                  "ACCEPT"], check=True)
+            print(f"[Debug] Allowed DMZ traffic for subnet {network.subnet}", flush=True)
 
             # Set up qdisc for DMZ monitoring
             subprocess.run(["tc", "qdisc", "add", "dev", "vmbr0", "clsact"], check=False)
@@ -654,6 +559,36 @@ def add_iptables_rules(challenge, user_vpn_ip, vpn_monitoring_device, dmz_monito
                 "dst_ip", network.subnet,
                 "action", "mirred", "egress", "mirror", "dev", dmz_monitoring_device
             ], check=True)
+            print(f"[Debug] Mirrored DMZ traffic to {dmz_monitoring_device}", flush=True)
+
+    print(f"[Info] Successfully added all iptables rules for challenge {challenge.id}", flush=True)
+
+
+def add_running_challenge_to_user(challenge, user_id, db_conn):
+    """
+    Add the running challenge to the user.
+    """
+    print(f"[Info] Adding running challenge {challenge.id} to user {user_id}", flush=True)
+
+    with db_conn.cursor() as cursor:
+        cursor.execute("UPDATE users SET running_challenge = %s WHERE id = %s", (challenge.id, user_id))
+        print(f"[Info] Successfully added running challenge {challenge.id} to user {user_id}", flush=True)
+
+
+def reset_expiration_timer(challenge_id, db_conn, expiration_duration_minutes=60):
+    """
+    Reset the expiration timer for the challenge.
+    """
+    print(f"[Info] Resetting expiration timer for challenge {challenge_id} to {expiration_duration_minutes} minutes", flush=True)
+
+    with db_conn.cursor() as cursor:
+        cursor.execute("""
+                       UPDATE challenges
+                       SET expires_at = CURRENT_TIMESTAMP + INTERVAL '%s minutes'
+                       WHERE id = %s
+                       """, (expiration_duration_minutes, challenge_id))
+
+    print(f"[Info] Successfully reset expiration timer for challenge {challenge_id}", flush=True)
 
 
 def start_dnsmasq_instances(challenge, user_vpn_ip):
@@ -662,6 +597,7 @@ def start_dnsmasq_instances(challenge, user_vpn_ip):
     Each instance will only answer for its configured domains and will ignore unknown zones,
     causing the client to move to the next nameserver on timeout rather than receiving NXDOMAIN.
     """
+    print(f"[Info] Starting dnsmasq instances for challenge {challenge.id} with user VPN IP {user_vpn_ip}", flush=True)
 
     machines_with_user_routes = {}
 
@@ -674,6 +610,7 @@ def start_dnsmasq_instances(challenge, user_vpn_ip):
         for connection in network.connections.values():
             if connection.machine.id not in machines_with_user_routes and network.accessible:
                 machines_with_user_routes[connection.machine.id] = connection
+                print(f"[Debug] Adding DHCP option for machine {connection.machine.id} to route user VPN IP {user_vpn_ip} through {network.router_ip}", flush=True)
                 with open(config_path, "a") as f:
                     f.write(f"dhcp-option=tag:{connection.machine.id},option:classless-static-route,{user_vpn_ip}/32,"
                             f"{network.router_ip}\n")
@@ -685,7 +622,7 @@ def start_dnsmasq_instances(challenge, user_vpn_ip):
         print(f"[Info] Pidfile path: {pidfile_path}", flush=True)
 
         # Launch the isolated dnsmasq instance
-        subprocess.Popen([
+        process = subprocess.Popen([
             "dnsmasq",
             f"--conf-file={config_path}",
             f"--pid-file={pidfile_path}",
@@ -693,26 +630,200 @@ def start_dnsmasq_instances(challenge, user_vpn_ip):
             f"--log-facility={log_path}",
         ])
 
-        print(f"[Info] Started dnsmasq for network {network.id} on device {network.host_device}", flush=True)
+        print(f"[Info] Started dnsmasq process (PID: {process.pid}) for network {network.id} on device {network.host_device}", flush=True)
+
+    print(f"[Info] All dnsmasq instances started for challenge {challenge.id}", flush=True)
 
 
-def add_running_challenge_to_user(challenge, user_id, db_conn):
+def wait_for_qemu_guest_agent(machine, timeout=120):
     """
-    Add the running challenge to the user.
+    Wait until QEMU Guest Agent is ready
     """
+    print(f"[Info] Waiting for QEMU Guest Agent to respond on VM {machine.id} (timeout: {timeout}s)", flush=True)
+    start_time = time.time()
 
-    with db_conn.cursor() as cursor:
-        cursor.execute("UPDATE users SET running_challenge = %s WHERE id = %s", (challenge.id, user_id))
+    while time.time() - start_time < timeout:
+        try:
+            cmd = f"qm guest exec {machine.id} -- echo 'ready'"
+            print(f"[Debug] Checking QEMU Guest Agent status on VM {machine.id}", flush=True)
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+
+            if result.returncode == 0:
+                elapsed_time = time.time() - start_time
+                print(f"[Info] QEMU Guest Agent responded on VM {machine.id} after {elapsed_time:.2f}s", flush=True)
+                launch_timing_logger(start_time, f"[GUEST AGENT RESPONDED]", machine.challenge.template.id, None,
+                                     VM_ID=machine.id)
+                return True
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError) as e:
+            print(f"[Debug] QEMU Guest Agent check failed on VM {machine.id}: {type(e).__name__}", flush=True)
+            pass
+
+        time.sleep(5)
+
+    print(f"[Error] QEMU Guest Agent timeout for VM {machine.id} after {timeout}s", flush=True)
+    raise TimeoutError(f"QEMU Guest Agent timeout for VM {machine.id}")
 
 
-def reset_expiration_timer(challenge_id, db_conn, expiration_duration_minutes=60):
+def generate_user_specific_flag(flag_secret, user_email):
     """
-    Reset the expiration timer for the challenge.
+    Generate a user-specific flag using the secret and user email.
+    Format: ITSEC{sha1.hmac_hash(key=secret,message=email)}
     """
+    print(f"[Debug] Generating user-specific flag for email {user_email}", flush=True)
+    hash_value = hmac.new(
+        flag_secret.encode('utf-8'),
+        user_email.encode('utf-8'),
+        hashlib.sha1
+    ).hexdigest()
+    generated_flag = f"ITSEC{{{hash_value}}}"
+    print(f"[Debug] Generated flag: {generated_flag}", flush=True)
+    return generated_flag
 
-    with db_conn.cursor() as cursor:
-        cursor.execute("""
-                       UPDATE challenges
-                       SET expires_at = CURRENT_TIMESTAMP + INTERVAL '%s minutes'
-                       WHERE id = %s
-                       """, (expiration_duration_minutes, challenge_id))
+
+def process_all_user_specific_flags(challenge, user_email):
+    """
+    Process all user-specific flags for the challenge.
+    Generates personalized flags and writes them to the appropriate VMs.
+    """
+    print(f"[Info] Starting user-specific flag processing for challenge {challenge.id} and user {user_email}", flush=True)
+
+    try:
+        if not hasattr(challenge.template, 'flags'):
+            print(f"[Info] No flags defined for challenge template {challenge.template.id}", flush=True)
+            return
+
+        flags_by_machine = {}
+        for flag in challenge.template.flags:
+            if flag['user_specific'] and flag['machine_template_id']:
+                machine_template_id = flag['machine_template_id']
+
+                print(f"[Info] Processing flag {flag['id']} for machine template {machine_template_id}", flush=True)
+
+                machine = None
+                for m in challenge.machines.values():
+                    if m.template.id == machine_template_id:
+                        machine = m
+                        break
+
+                if machine is None:
+                    print(f"[Warning] Machine template {machine_template_id} not found in challenge", flush=True)
+                    continue
+
+                if machine.id not in flags_by_machine:
+                    flags_by_machine[machine.id] = []
+
+                print(f"[Info] Processing flag {flag['id']} for machine {machine.id}", flush=True)
+
+                user_flag = generate_user_specific_flag(flag['flag'], user_email)
+                flag_path = f"/root/flag_{flag['order_index']}.txt"
+                print(f"[Debug] Flag will be written to {flag_path} on VM {machine.id}", flush=True)
+                flags_by_machine[machine.id].append({
+                    'flag': user_flag,
+                    'path': flag_path,
+                })
+
+
+    except Exception as e:
+        print(f"[Error] Failed to process flags for challenge {challenge.id}, user {user_email}: {e}", flush=True)
+        raise e
+
+    print(f"[Info] Finished generating user-specific flags for {len(flags_by_machine)} machine(s)", flush=True)
+
+    try:
+        flag_write_threads = []
+        for machine_id, flags in flags_by_machine.items():
+            print(f"[Info] Creating thread to write {len(flags)} flag(s) to VM {machine_id}", flush=True)
+            flag_write_threads.append(
+                threading.Thread(target=write_user_specific_flags_to_vm, args=(machine_id, flags)))
+
+        print(f"[Info] Starting {len(flag_write_threads)} flag write thread(s)", flush=True)
+
+        for thread in flag_write_threads:
+            thread.start()
+
+        for thread in flag_write_threads:
+            thread.join()
+
+        print(f"[Info] All flag write threads completed successfully", flush=True)
+
+    except Exception as e:
+        print(f"[Error] Failed to write user-specific flags to VMs: {e}", flush=True)
+        raise e
+
+
+def write_user_specific_flags_to_vm(machine_id, flags):
+    """
+    Write user-specific flags to a VM via QEMU Guest Agent.
+    """
+    print(f"[Info] Starting flag write process for VM {machine_id}", flush=True)
+    start_flag_write_time = time.time()
+
+    flag_write_command = ""
+    for flag in flags:
+        escaped_flag = shlex.quote(flag['flag'])
+        flag_path = flag['path']
+
+        flag_write_command += f"echo {escaped_flag} > {flag_path} && chmod 600 {flag_path} && "
+        print(f"[Debug] Queuing flag write: {flag_path} on VM {machine_id}", flush=True)
+
+    if flag_write_command != "":
+        flag_write_command = flag_write_command.rstrip(" && ")
+        print(f"[Info] Executing flag write command on VM {machine_id}", flush=True)
+        print(f"[Debug] Command: {flag_write_command}", flush=True)
+
+        result = subprocess.run(["qm", "guest", "exec", str(machine_id), "--",
+                                 "bash", "-c", flag_write_command], capture_output=True, text=True)
+
+        if result.returncode != 0:
+            print(f"[Error] Failed to write flags to VM {machine_id}: {result.stderr}", flush=True)
+            raise RuntimeError(f"Failed to write flags to VM {machine_id}: {result.stderr}")
+
+        print(f"[Info] Flag write command executed successfully on VM {machine_id}", flush=True)
+
+    elapsed_time = time.time() - start_flag_write_time
+    launch_timing_logger(start_flag_write_time, f"[FLAG WRITE COMPLETE]", None, None, VM_ID=machine_id)
+    print(f"[Info] Successfully wrote {len(flags)} flag(s) to VM {machine_id} in {elapsed_time:.2f}s", flush=True)
+
+
+def generate_mac_address(machine_id, local_network_id, local_connection_id):
+    """
+    Generate a MAC address based on the machine ID, network ID, and connection ID.
+    local_network_id, local_connection_id : 1-15 -> 2 nibbles combined
+    machine_id : 100000000 -> 899999999 -> 8 nibbles -> hash to
+    """
+    print(f"[Debug] Generating MAC address for machine {machine_id}, network {local_network_id}, connection {local_connection_id}", flush=True)
+
+    machine_hex = hex(machine_id)[2:].zfill(8)[-8:]
+    machine_bytes = [machine_hex[i:i + 2] for i in range(0, len(machine_hex), 2)]
+    network_hex = hex(local_network_id)[2:]
+    connection_hex = hex(local_connection_id)[2:]
+
+    if len(machine_bytes) != 4:
+        print(f"[Error] Challenge ID must be 8 hex digits, got {len(machine_bytes) * 2} hex digits", flush=True)
+        raise ValueError(f"Challenge ID must be 8 hex digits, got {len(machine_bytes) * 2} hex digits")
+
+    if len(network_hex) > 1 or len(connection_hex) > 1:
+        print(f"[Error] Network ID and Connection ID must be 1 hex digit, got {len(network_hex)} and {len(connection_hex)} hex digits", flush=True)
+        raise ValueError(f"Network ID and Connection ID must be 1 hex digit, got {len(network_hex)} and "
+                         f"{len(connection_hex)} hex digits")
+
+    mac = (f"02:{machine_bytes[0]}:{machine_bytes[1]}:{machine_bytes[2]}:{machine_bytes[3]}"
+           f":{network_hex}{connection_hex}")
+    print(f"[Debug] Generated MAC address: {mac}", flush=True)
+    return mac
+
+
+def vmid_to_ipv6(vmid, offset=0x1000):
+    """
+    Create ipv6 address from a VMID.
+    """
+    print(f"[Debug] Generating IPv6 address from VMID {vmid} with offset {hex(offset)}", flush=True)
+
+    host_id = offset + vmid
+    high = (host_id >> 16) & 0xFFFF
+    low = host_id & 0xFFFF
+    ipv6_addr = f"fd12:3456:789a:1::{high:x}:{low:x}"
+
+    print(f"[Debug] Generated IPv6 address: {ipv6_addr}", flush=True)
+    return ipv6_addr
+
