@@ -1,8 +1,8 @@
-def launch_timing_logger(start_time, tag, challenge_template_id=None, user_id=None, logfile_path="/var/log/ctf-challenger-launch_timing.log", **kwargs):
-    """Log the timing of a challenge launch to a log file."""
+import time
+import datetime
 
-    import time
-    import datetime
+def launch_timing_logger(start_time, tag, challenge_template_id=None, user_id=None, logfile_path="/var/log/heiST-launch_timing.log", **kwargs):
+    """Log the timing of a challenge launch to a log file."""
 
     end_time = time.time()
 

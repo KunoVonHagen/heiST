@@ -13,21 +13,16 @@ sys.stdout.reconfigure(line_buffering=True)
 
 # Load environment variables
 load_dotenv()
-MONITORING_FILES_DIR = os.getenv("MONITORING_FILES_DIR","/root/ctf-challenger/monitoring")
-UTILS_DIR = f"{MONITORING_FILES_DIR}/utils"
-
-# Import the script_helper module
-sys.path.append(UTILS_DIR)
-from script_helper import (
+from monitoring.utils.script_helper import (
     log_info, log_debug, log_error, log_warning, log_success, log_section, execute_remote_command_with_key,
     Timer, time_function, DEBUG_MODE
 )
 
 # ==== CONFIGURATION CONSTANTS ====
-VECTOR_DIR = os.getenv("VECTOR_DIR", "/root/ctf-challenger/monitoring/vector")
+VECTOR_DIR = os.getenv("VECTOR_DIR", "/root/heiST/monitoring/vector")
 CONFIG_DIR = f"{VECTOR_DIR}/config"
 
-SSL_TLS_CERTS_DIR = os.getenv("SSL_TLS_CERTS_DIR", "/root/ctf-challenger/setup/certs")
+SSL_TLS_CERTS_DIR = os.getenv("SSL_TLS_CERTS_DIR", "/root/heiST/setup/certs")
 CA_FILE = f"{SSL_TLS_CERTS_DIR}/fullchain.pem"
 
 CLICKHOUSE_USER = os.getenv("CLICKHOUSE_USER", "default")

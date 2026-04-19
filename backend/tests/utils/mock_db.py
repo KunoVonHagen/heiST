@@ -3,14 +3,9 @@ import testing.postgresql
 from dotenv import load_dotenv
 import tempfile
 import os
-import pwd
-import grp
 import subprocess
 
-import sys
-SETUP_FILES_DIR = "/root/ctf-challenger/setup"
-sys.path.append(SETUP_FILES_DIR)
-from setup import setup_database
+from setup.setup import setup_database
 
 load_dotenv()
 

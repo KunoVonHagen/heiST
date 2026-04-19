@@ -10,11 +10,18 @@ import subprocess
 import datetime
 import sys
 import re
+import time
+import psycopg2
+
+from backend.subnet_calculations import nth_challenge_subnet, nth_vpn_static_ip
+from backend.get_user_config import get_user_config
 
 load_dotenv()
 
-BACKEND_DIR = "/root/ctf-challenger/backend"
-sys.path.append(BACKEND_DIR)
+APT_LOCK_TIMEOUT = os.getenv("APT_LOCK_TIMEOUT", "300")
+
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 PROXMOX_HOST = os.getenv("PROXMOX_HOST", "10.0.0.1")
 PROXMOX_USER = os.getenv("PROXMOX_USER", "root@pam")
@@ -27,14 +34,14 @@ PROXMOX_HOSTNAME = os.getenv("PROXMOX_HOSTNAME", "pve")
 
 UBUNTU_BASE_SERVER_URL = os.getenv("UBUNTU_BASE_SERVER_URL")
 
-DATABASE_FILES_DIR = os.getenv("DATABASE_FILES_DIR", "/root/ctf-challenger/database")
-DATABASE_NAME = os.getenv("DATABASE_NAME", "ctf_challenger")
+DATABASE_FILES_DIR = os.getenv("DATABASE_FILES_DIR", "/root/heiST/database")
+DATABASE_NAME = os.getenv("DATABASE_NAME", "heist")
 DATABASE_USER = os.getenv("DATABASE_USER", "postgres")
 DATABASE_PASSWORD = os.getenv("DATABASE_PASSWORD")
 DATABASE_PORT = os.getenv("DATABASE_PORT", "5432")
 DATABASE_HOST = os.getenv("DATABASE_HOST", "10.0.0.102")
 
-WEBSERVER_FILES_DIR = os.getenv("WEBSERVER_FILES_DIR", "/root/ctf-challenger/webserver")
+WEBSERVER_FILES_DIR = os.getenv("WEBSERVER_FILES_DIR", "/root/heiST/webserver")
 WEBSERVER_USER = os.getenv("WEBSERVER_USER", "www-data")
 WEBSERVER_GROUP = os.getenv("WEBSERVER_GROUP", "www-data")
 WEBSERVER_ROOT = os.getenv("WEBSERVER_ROOT", "/var/www/html")
@@ -42,14 +49,14 @@ WEBSERVER_HOST = os.getenv("WEBSERVER_HOST", "10.0.0.101")
 WEBSERVER_HTTP_PORT = os.getenv("WEBSERVER_HTTP_PORT", "80")
 WEBSERVER_HTTPS_PORT = os.getenv("WEBSERVER_HTTPS_PORT", "443")
 
-BACKEND_FILES_DIR = os.getenv("BACKEND_FILES_DIR", "/root/ctf-challenger/backend")
+BACKEND_FILES_DIR = os.getenv("BACKEND_FILES_DIR", "/root/heiST/backend")
 
 OPENVPN_SUBNET = os.getenv("OPENVPN_SUBNET", "10.64.0.0/10")
 OPENVPN_SERVER_IP = os.getenv("OPENVPN_SERVER_IP", "10.64.0.1")
 
 BACKEND_NETWORK_SUBNET = os.getenv("BACKEND_NETWORK_SUBNET", "10.0.0.1/24")
 BACKEND_NETWORK_ROUTER = os.getenv("BACKEND_NETWORK_ROUTER", "10.0.0.1")
-BACKEND_NETWORK_DEVICE = os.getenv("BACKEND_NETWORK_DEVICE", "vrt-backend")
+BACKEND_NETWORK_DEVICE = os.getenv("BACKEND_NETWORK_DEVICE", "vrt_backend")
 BACKEND_NETWORK_HOST_MIN = os.getenv("BACKEND_NETWORK_HOST_MIN", "10.0.0.2")
 BACKEND_NETWORK_HOST_MAX = os.getenv("BACKEND_NETWORK_HOST_MAX", "10.0.0.254")
 
@@ -67,14 +74,13 @@ BACKEND_CERTIFICATE_DIR = os.path.join(BACKEND_FILES_DIR, "certificates")
 BACKEND_CERTIFICATE_FILE = os.path.join(BACKEND_CERTIFICATE_DIR, "backend.crt")
 BACKEND_CERTIFICATE_KEY_FILE = os.path.join(BACKEND_CERTIFICATE_DIR, "backend.key")
 
-BACKEND_AUTHENTICATION_TOKEN = os.getenv("BACKEND_AUTHENTICATION_TOKEN")
 
 CHALLENGES_ROOT_SUBNET = os.getenv("CHALLENGES_ROOT_SUBNET", "10.128.0.0")
 CHALLENGES_ROOT_SUBNET_MASK = os.getenv("CHALLENGES_ROOT_SUBNET_MASK", "255.128.0.0")
 
 TESTING_FILES_DIR = os.path.join(BACKEND_FILES_DIR, "tests", "utils")
 TESTING_DATABASE_BASE_DIR = os.getenv("TESTING_DATABASE_BASE_DIR", "/tmp/pg_test_base")
-TESTING_DATABASE_NAME = os.getenv("TESTING_DATABASE_NAME", "ctf_challenger")
+TESTING_DATABASE_NAME = os.getenv("TESTING_DATABASE_NAME", "heist")
 TESTING_DATABASE_USER = os.getenv("TESTING_DATABASE_USER", "postgres")
 TESTING_DATABASE_PASSWORD = os.getenv("TESTING_DATABASE_PASSWORD")
 TESTING_DATABASE_PORT = os.getenv("TESTING_DATABASE_PORT", "5432")
@@ -93,6 +99,7 @@ WAZUH_PASSWORD = os.getenv("WAZUH_API_PASSWORD", "MyS3cr37P450r.*-")
 WAZUH_ENROLLMENT_PASSWORD = os.getenv("WAZUH_ENROLLMENT_PASSWORD", "")
 WAZUH_NETWORK_DEVICE = os.getenv("WAZUH_NETWORK_DEVICE", BACKEND_NETWORK_DEVICE)
 
+BACKEND_AUTHENTICATION_TOKEN = hashlib.sha256(os.urandom(64)).hexdigest()
 LECTURE_SIGNUP_TOKEN = os.getenv("LECTURE_SIGNUP_TOKEN", "dummy-token")
 
 
@@ -194,12 +201,12 @@ def install_dependencies():
     # Install appropriate ntpdate package
     if subprocess.run(["dpkg", "--compare-versions", debian_version, "ge", "13.0"]).returncode == 0:
         print("\tInstalling ntpsec-ntpdate (Debian >= 13)")
-        subprocess.run(["apt", "update"], check=True, capture_output=True)
-        subprocess.run(["apt", "install", "-y", "ntpsec-ntpdate"], check=True, capture_output=True)
+        subprocess.run(["apt-get", "-o", f"DPkg::Lock::Timeout={APT_LOCK_TIMEOUT}", "update"], check=True, capture_output=True)
+        subprocess.run(["apt-get", "-o", f"DPkg::Lock::Timeout={APT_LOCK_TIMEOUT}", "install", "-y", "ntpsec-ntpdate"], check=True, capture_output=True)
     else:
         print("\tInstalling legacy ntpdate (Debian < 13)")
-        subprocess.run(["apt", "update"], check=True, capture_output=True)
-        subprocess.run(["apt", "install", "-y", "ntpdate"], check=True, capture_output=True)
+        subprocess.run(["apt-get", "-o", f"DPkg::Lock::Timeout={APT_LOCK_TIMEOUT}", "update"], check=True, capture_output=True)
+        subprocess.run(["apt-get", "-o", f"DPkg::Lock::Timeout={APT_LOCK_TIMEOUT}", "install", "-y", "ntpdate"], check=True, capture_output=True)
 
     print("\tSynchronizing time with NTP server")
     subprocess.run(["ntpdate", "time.google.com"], check=True, capture_output=True)
@@ -208,7 +215,7 @@ def install_dependencies():
 
     # Update and install required packages
     print("\tUpdating package list")
-    subprocess.run(["apt", "update"], check=True, capture_output=True)
+    subprocess.run(["apt-get", "-o", f"DPkg::Lock::Timeout={APT_LOCK_TIMEOUT}", "update"], check=True, capture_output=True)
 
     packages = [
         ("OpenVPN", ["openvpn"]),
@@ -223,7 +230,7 @@ def install_dependencies():
 
     for desc, pkgs in packages:
         print(f"\tInstalling {desc}")
-        subprocess.run(["apt", "install", "-y"] + pkgs, check=True, capture_output=True)
+        subprocess.run(["apt-get", "-o", f"DPkg::Lock::Timeout={APT_LOCK_TIMEOUT}", "install", "-y"] + pkgs, check=True, capture_output=True)
 
     # Stop and disable PostgreSQL
     subprocess.run(["systemctl", "stop", "postgresql"], check=True, capture_output=True)
@@ -242,7 +249,7 @@ def setup_backend_certificate():
     subprocess.run(["openssl", "req", "-x509", "-nodes", "-days", "3650",
                     "-newkey", "rsa:2048", "-keyout", BACKEND_CERTIFICATE_KEY_FILE,
                     "-out", BACKEND_CERTIFICATE_FILE, "-subj",
-                    f"/CN={PROXMOX_HOST}/O=CTF Challenger Backend"], check=True, capture_output=True)
+                    f"/CN={PROXMOX_HOST}/O=heiST Backend"], check=True, capture_output=True)
 
 
 def allow_ova_upload_to_proxmox():
@@ -393,7 +400,7 @@ def generate_and_distribute_env_files(backend_api_token, web_server_api_token):
         backend_env_file.write(f"DB_PASSWORD='{DATABASE_PASSWORD}'\n")
         backend_env_file.write(f"DB_PORT='{DATABASE_PORT}'\n")
 
-        backend_env_file.write(f"PROXMOX_URL='https://localhost:8006'\n")
+        backend_env_file.write(f"PROXMOX_URL='https://{PROXMOX_HOSTNAME}:{PROXMOX_PORT}'\n")
         backend_env_file.write(f"PROXMOX_API_TOKEN='{backend_api_token_string}'\n")
         backend_env_file.write(f"PROXMOX_HOSTNAME='{PROXMOX_HOSTNAME}'\n")
 
@@ -416,7 +423,7 @@ def generate_and_distribute_env_files(backend_api_token, web_server_api_token):
         testing_env_file.write(f"PROXMOX_HOST='{PROXMOX_HOST}'\n")
         testing_env_file.write(f"PROXMOX_PORT='{PROXMOX_PORT}'\n")
         testing_env_file.write(f"PROXMOX_HOSTNAME='{PROXMOX_HOSTNAME}'\n")
-        testing_env_file.write(f"PROXMOX_URL='https://localhost:8006'\n")
+        testing_env_file.write(f"PROXMOX_URL='https://{PROXMOX_HOSTNAME}:{PROXMOX_PORT}'\n")
         testing_env_file.write(f"PROXMOX_API_TOKEN='{backend_api_token_string}'\n")
 
         testing_env_file.write(f"DB_HOST='{DATABASE_HOST}'\n")
@@ -573,30 +580,34 @@ def download_ubuntu_base_server_ova():
     Download the Ubuntu Base Server OVA file.
     """
 
-    os.makedirs("ubuntu-base-server", exist_ok=True)
+    scrip_dir = os.path.dirname(os.path.realpath(__file__))
+    base_server_dir = os.path.join(scrip_dir, "ubuntu-base-server")
+    base_server_file = os.path.join(base_server_dir, "ubuntu-base-server.ova")
+
+    os.makedirs(base_server_dir, exist_ok=True)
 
     print("\tChecking if Ubuntu Base Server OVA file already exists")
-    if not os.path.exists("ubuntu-base-server/ubuntu-base-server.ova"):
+    if not os.path.exists(base_server_file):
         print("\tDownloading Ubuntu Base Server OVA file")
-        response = requests.get(UBUNTU_BASE_SERVER_URL, stream=True)
-        if response.status_code == 200:
-            with open("ubuntu-base-server/ubuntu-base-server.ova", "wb") as file:
-                for chunk in response.iter_content(chunk_size=8192):
-                    file.write(chunk)
-            print("\tDownloaded Ubuntu Base Server OVA.")
-        else:
-            print(f"\tFailed to download OVA: {response.status_code}")
-
+        try:
+            proc = subprocess.Popen(["wget", "-O", base_server_file, UBUNTU_BASE_SERVER_URL], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = proc.communicate()
+            if proc.returncode == 0:
+                print("\tSuccessfully downloaded Ubuntu Base Server OVA file")
+            else:
+                print(f"\tFailed to download OVA: {stderr.decode()}")
+        except subprocess.CalledProcessError as e:
+            print(f"\tFailed to download OVA: {e.stderr.decode()}")
     else:
         print("\tUbuntu Base Server OVA file already exists. Skipping download.")
+
+    return base_server_dir, base_server_file
 
 
 def check_user_input(user_input):
     """
     Sanitize user input to prevent command injection attacks.
     """
-    import re
-
     blacklist_pattern = r"""[;&|><`$\\'"*?{}\[\]~!#()=]+"""
     if re.search(blacklist_pattern, user_input):
         raise ValueError("Input contains potentially dangerous characters.")
@@ -614,15 +625,15 @@ def setup_web_and_database_server(api_token):
     if os.path.exists("ubuntu-base-server") and not REUSE_DOWNLOADED_OVA:
         subprocess.run(["rm", "-rf", "ubuntu-base-server"], check=True, capture_output=True)
 
-    download_ubuntu_base_server_ova()
+    base_server_dir, base_server_file = download_ubuntu_base_server_ova()
 
     print("\tExtracting OVA file")
 
     # Extract the OVA file
-    subprocess.run(["tar", "-xf", "ubuntu-base-server/ubuntu-base-server.ova", "-C", "ubuntu-base-server"],
+    subprocess.run(["tar", "-xf", base_server_file, "-C", base_server_dir],
                    check=True, capture_output=True)
 
-    files = os.listdir("ubuntu-base-server")
+    files = os.listdir(base_server_dir)
     ovf_file = next((f for f in files if f.endswith('.ovf')), None)
     check_user_input(ovf_file)
 
@@ -630,11 +641,11 @@ def setup_web_and_database_server(api_token):
         raise FileNotFoundError("OVF file not found in the extracted OVA directory.")
 
     print("\tImporting OVA file as webserver")
-    importovf_command = f"qm importovf {webserver_id} \"ubuntu-base-server/{ovf_file}\" local-lvm"
+    importovf_command = f"qm importovf {webserver_id} \"{base_server_dir}/{ovf_file}\" local-lvm"
     subprocess.run(importovf_command, shell=True, check=True, capture_output=True)
 
     print("\tImporting OVA file as database server")
-    importovf_command = f"qm importovf {database_id} \"ubuntu-base-server/{ovf_file}\" local-lvm"
+    importovf_command = f"qm importovf {database_id} \"{base_server_dir}/{ovf_file}\" local-lvm"
     subprocess.run(importovf_command, shell=True, check=True, capture_output=True)
 
     proxmox = ProxmoxAPI("localhost", **api_token, verify_ssl=False)
@@ -753,7 +764,7 @@ verb 7
 
     env = os.environ.copy()
     env['EASYRSA_BATCH'] = '1'
-    env['EASYRSA_REQ_CN'] = 'CTF Challenger CA'
+    env['EASYRSA_REQ_CN'] = 'heiST CA'
 
     print("\tInitializing Easy-RSA PKI")
     easyrsa_binary = os.path.join(easyrsa_dir, "easyrsa")
@@ -830,14 +841,14 @@ def setup_database_server():
     # Synchronize the time with NTP server
     print("\tSynchronizing server time with NTP server")
     execute_command("sudo timedatectl set-timezone Europe/Berlin")
-    execute_command("sudo apt update")
-    execute_command("sudo apt install -y ntpdate")
+    execute_command(f"sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout={APT_LOCK_TIMEOUT} update")
+    execute_command(f"sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout={APT_LOCK_TIMEOUT} install -y ntpdate")
     execute_command("sudo ntpdate time.google.com")
 
     # Install PostgreSQL on the database server
     print("\tInstalling PostgreSQL on the database server")
-    execute_command("sudo apt update")
-    execute_command("sudo apt install postgresql postgresql-contrib -y")
+    execute_command(f"sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout={APT_LOCK_TIMEOUT} update")
+    execute_command(f"sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout={APT_LOCK_TIMEOUT} install -y postgresql postgresql-contrib")
     execute_command("sudo systemctl enable postgresql")
     execute_command("sudo systemctl start postgresql")
 
@@ -962,26 +973,26 @@ def setup_webserver():
     # Synchronize the time with NTP server
     print("\tSynchronizing server time with NTP server")
     execute_command("sudo timedatectl set-timezone Europe/Berlin")
-    execute_command("sudo apt update")
-    execute_command("sudo apt install -y ntpdate")
+    execute_command(f"sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout={APT_LOCK_TIMEOUT} update")
+    execute_command(f"sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout={APT_LOCK_TIMEOUT} install -y ntpdate")
     execute_command("sudo ntpdate time.google.com")
 
     # Install Apache, PHP, Redis and composer on the webserver
     print("\tInstalling Apache, PHP, and composer on the webserver")
-    execute_command("sudo apt update")
-    execute_command("sudo apt install apache2 php libapache2-mod-php php-curl php-pgsql php-xml php-mbstring php-xdebug php-sockets php-imagick composer redis-server php-redis -y")
+    execute_command(f"sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout={APT_LOCK_TIMEOUT} update")
+    execute_command(f"sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout={APT_LOCK_TIMEOUT} install -y apache2 php libapache2-mod-php php-curl php-pgsql php-xml php-mbstring php-xdebug php-sockets php-imagick composer redis-server php-redis")
 
     # Changing Redis Configuration
     print("\tChanging Redis Configuration")
     execute_command("sudo systemctl enable redis-server")
     execute_command("sudo cp /etc/redis/redis.conf /etc/redis/redis.conf.backup")
-    execute_command("sudo sed -i -e 's/^bind 127\.0\.0\.1 -::1/#bind 127.0.0.1 -::1/' -e 's/^port 6379$/port 0/' -e 's|^# unixsocket /run/redis/redis-server.sock|unixsocket /run/redis/redis-server.sock|' -e 's/^# unixsocketperm 700/unixsocketperm 770/' /etc/redis/redis.conf")
+    execute_command(r"sudo sed -i -e 's/^bind 127\.0\.0\.1 -::1/#bind 127.0.0.1 -::1/' -e 's/^port 6379$/port 0/' -e 's|^# unixsocket /run/redis/redis-server.sock|unixsocket /run/redis/redis-server.sock|' -e 's/^# unixsocketperm 700/unixsocketperm 770/' /etc/redis/redis.conf")
     execute_command("sudo usermod -aG redis www-data")
     execute_command("sudo systemctl restart redis")
 
     # Enable Apache modules
     print("\tEnabling Apache modules")
-    php_version = execute_command("php -v | grep -oP 'PHP \K[0-9]+\.[0-9]+'")
+    php_version = execute_command(r"php -v | grep -oP 'PHP \K[0-9]+\.[0-9]+'")
     php_version = "".join([c for c in php_version if c.isdigit() or c == "."])
 
     execute_command(f"sudo a2enmod php{php_version}")
@@ -1072,9 +1083,9 @@ def setup_webserver():
     execute_command("sudo chown root:root /var/www/html")
 
     print("\tCreating directories for the logs")
-    execute_command("sudo mkdir -p /var/log/ctf-challenger")
-    execute_command("sudo chown -R www-data:www-data /var/log/ctf-challenger")
-    execute_command("sudo chmod 755 /var/log/ctf-challenger")
+    execute_command("sudo mkdir -p /var/log/heiST")
+    execute_command("sudo chown -R www-data:www-data /var/log/heiST")
+    execute_command("sudo chmod 755 /var/log/heiST")
 
     print("\tCreating directories for the locks")
     execute_command("sudo mkdir -p /var/www/deployment_locks")
@@ -1199,9 +1210,6 @@ def validate_running_and_reachable(webserver_id, database_id, api_token, timeout
     """
     Validate that the webserver and database server are running and reachable.
     """
-    import time
-    import psycopg2
-
     proxmox = ProxmoxAPI("localhost", **api_token, verify_ssl=False)
 
     # Check if the webserver and database server are running
@@ -1387,8 +1395,6 @@ def setup_database(conn=None, create_admin_config=True):
     connection_managed_externally = conn is not None
 
     if not conn:
-        import psycopg2
-
         conn = psycopg2.connect(
             dbname=DATABASE_NAME,
             user=DATABASE_USER,
@@ -1455,8 +1461,6 @@ def setup_database(conn=None, create_admin_config=True):
     conn.commit()
 
     # Setup the challenge subnets and VPN static IPs
-    from subnet_calculations import nth_challenge_subnet, nth_vpn_static_ip
-
     if not connection_managed_externally:
         print("\tGenerating challenge subnets")
     challenge_subnet_base = "10.128.0.0"
@@ -1495,7 +1499,6 @@ def setup_database(conn=None, create_admin_config=True):
                        (admin_user_id, vpn_static_ip))
 
     if create_admin_config:
-        from get_user_config import get_user_config
         if not connection_managed_externally:
             print("\tCreating user config")
         get_user_config(admin_user_id, conn)
@@ -1519,8 +1522,7 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory={BACKEND_FILES_DIR}
-ExecStart=/usr/bin/python3 {BACKEND_FILES_DIR}/api.py
+ExecStart={PROJECT_ROOT}/bin/api
 Restart=always
 RestartSec=5
 TimeoutStartSec=0
@@ -1550,7 +1552,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory={BACKEND_FILES_DIR}
-ExecStart=/usr/bin/python3 -u {BACKEND_FILES_DIR}/pool_manager.py
+ExecStart={PROJECT_ROOT}/bin/pool_manager
 Restart=always
 RestartSec=5
 TimeoutStartSec=0
@@ -1580,7 +1582,7 @@ After=network.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/python3 {BACKEND_FILES_DIR}/cleanup.py
+ExecStart={PROJECT_ROOT}/bin/cleanup
 RemainAfterExit=yes
 
 [Install]

@@ -1,14 +1,29 @@
-from DatabaseClasses import *
-from proxmox_api_calls import *
-import subprocess
-import os
 import time
-import requests
 import urllib3
 from tenacity import retry, stop_after_attempt, wait_fixed
 from dotenv import load_dotenv, find_dotenv
-from get_db_connection import db_connection_context
 import random
+import requests
+import subprocess
+import os
+
+from backend.DatabaseClasses import (
+    ChallengeTemplate,
+    ChallengeSubnet,
+    Challenge,
+    MachineTemplate,
+    Machine,
+    NetworkTemplate,
+    Network,
+    Connection
+)
+from backend.proxmox_api_calls import (
+    vm_exists_api_call,
+    delete_network_api_call,
+    reload_network_api_call,
+    network_device_exists_api_call
+)
+from backend.get_db_connection import db_connection_context
 
 load_dotenv(find_dotenv())
 
@@ -28,7 +43,6 @@ def teardown_challenge(challenge_id):
     """
     Stop a challenge for a user.
     """
-
     with db_connection_context() as db_conn:
         challenge = fetch_challenge(challenge_id, db_conn)
         fetch_machines(challenge, db_conn)

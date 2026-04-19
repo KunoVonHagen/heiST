@@ -7,12 +7,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BACKEND_DIR = "/root/ctf-challenger/backend"
-sys.path.append(BACKEND_DIR)
+from setup.backup_db import backup_database
 
-from backup_db import backup_database
-
-DATABASE_NAME = os.getenv("DATABASE_NAME", "ctf_challenger")
+DATABASE_NAME = os.getenv("DATABASE_NAME", "heist")
 DATABASE_USER = os.getenv("DATABASE_USER", "postgres")
 DATABASE_HOST = os.getenv("DATABASE_HOST", "10.0.0.102")
 
