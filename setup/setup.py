@@ -1498,13 +1498,6 @@ def setup_database(conn=None, create_admin_config=True):
         cursor.execute(f"UPDATE vpn_static_ips SET user_id = %s WHERE vpn_static_ip = %s",
                        (admin_user_id, vpn_static_ip))
 
-    if create_admin_config:
-        if not connection_managed_externally:
-            print("\tCreating user config")
-        get_user_config(admin_user_id, conn)
-        if not connection_managed_externally:
-            print("\tSaved admin vpn config to /etc/openvpn/client-configs/1.ovpn")
-
     conn.commit()
 
     if not connection_managed_externally:
