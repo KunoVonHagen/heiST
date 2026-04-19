@@ -39,8 +39,7 @@ WAZUH_PASSWORD = os.getenv("WAZUH_API_PASSWORD", "MyS3cr37P450r.*-")
 
 DNSMASQ_INSTANCES_DIR = "/etc/dnsmasq-instances"
 
-@run_with_db_connection
-def teardown_challenge(challenge_id, db_conn=None):
+def teardown_challenge(challenge_id):
     """
     Stop a challenge for a user.
     """

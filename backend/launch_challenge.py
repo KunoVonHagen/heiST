@@ -37,7 +37,6 @@ challenge_launch_lock_dir = "/var/lock/challenge_launch_locks/"
 os.makedirs(challenge_launch_lock_dir, exist_ok=True)
 
 
-@run_with_db_connection
 def launch_challenge(challenge_template_id, user_id, vpn_monitoring_device, dmz_monitoring_device):
     """
     Launch a challenge by creating a user and network device.

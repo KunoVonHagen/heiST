@@ -45,8 +45,7 @@ os.makedirs(DNSMASQ_INSTANCES_DIR, exist_ok=True)
 
 @retry(stop=stop_after_attempt(10), wait=wait_exponential_jitter(initial=1, max=5, exp_base=1.1, jitter=1),
        reraise=True)
-@run_with_db_connection
-def warmup_challenge(pre_assigned_user_id, challenge_template_id, vpn_monitoring_device, dmz_monitoring_device, db_conn=None):
+def warmup_challenge(pre_assigned_user_id, challenge_template_id, vpn_monitoring_device, dmz_monitoring_device):
     """
     Launch a challenge by creating a user and network device.
     """

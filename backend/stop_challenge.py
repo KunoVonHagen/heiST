@@ -12,7 +12,6 @@ CHALLENGES_ROOT_SUBNET_MASK_INT = sum(bin(int(x)).count('1') for x in CHALLENGES
 CHALLENGES_ROOT_SUBNET_CIDR = f"{CHALLENGES_ROOT_SUBNET}/{CHALLENGES_ROOT_SUBNET_MASK_INT}"
 
 
-@run_with_db_connection
 def stop_challenge(user_id):
     """
     Stop a challenge for a user.
